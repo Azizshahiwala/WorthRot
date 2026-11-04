@@ -9,12 +9,40 @@ export default function App() {
   return (
     <main className="page-shell">
       <section className="hero" aria-labelledby="page-title">
-        <p className="eyebrow">A little less scrolling, a lot more learning</p>
-        <h1 id="page-title">Is this video worth your time?</h1>
-        <p className="hero-copy">
-          Tell us what you want to learn. Get a clear verdict with timestamped
-          evidence, so you can watch with a purpose.
-        </p>
+        <div className="hero-copy-block">
+          <p className="eyebrow">Issue 01 / The video field guide</p>
+          <h1 id="page-title">
+            Is this video
+            <br />
+            <span className="hero-highlight">worth your time?</span>
+          </h1>
+          <p className="hero-copy">
+            Bring a question. Get a verdict backed by timestamped proof, plus
+            the gaps the video leaves behind.
+          </p>
+          <div className="hero-ledger" aria-label="What WorthRot checks">
+            <span>
+              <b>01</b> Your actual question
+            </span>
+            <span>
+              <b>02</b> Timestamped evidence
+            </span>
+            <span>
+              <b>03</b> What’s still missing
+            </span>
+          </div>
+        </div>
+        <aside className="hero-stamp" aria-label="Proof before play">
+          <span className="stamp-top">WORTHROT / 001</span>
+          <strong>
+            Proof
+            <br />
+            before
+            <br />
+            play
+          </strong>
+          <span className="stamp-bottom">No title-only takes</span>
+        </aside>
       </section>
 
       <div className="analyzer-grid">
@@ -25,13 +53,14 @@ export default function App() {
         <section className="result-region" aria-live="polite">
           {status === "idle" && (
             <Card className="empty-result">
+              <span className="step-label">Waiting on your source</span>
               <span className="empty-mark" aria-hidden="true">
-                ↳
+                02
               </span>
-              <h2>Your useful bits will show up here</h2>
+              <h2>No verdict without receipts.</h2>
               <p>
-                Add a question and a video or transcript to get started. We’ll
-                show what matches and what’s missing.
+                Add a question and a video or transcript. Your verdict, proof,
+                and missing pieces will land here.
               </p>
             </Card>
           )}

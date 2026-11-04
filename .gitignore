@@ -8,5 +8,6 @@ node_modules/
 frontend/dist/
 .env
 .env.*
+*.zip
 !.env.example
 *.py[cod]

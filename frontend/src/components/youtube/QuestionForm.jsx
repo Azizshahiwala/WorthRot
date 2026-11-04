@@ -30,7 +30,9 @@ export default function QuestionForm() {
   return (
     <form className="question-form" onSubmit={handleSubmit}>
       <div className="form-heading">
-        <span className="step-label">Your next watch</span>
+        <span className="step-label">
+          <span className="step-number">01</span> The question
+        </span>
         <h2>What do you want to know?</h2>
         <p>We’ll look for answers in the video, not just its title.</p>
       </div>
@@ -58,7 +60,7 @@ export default function QuestionForm() {
       />
 
       <details className="transcript-details">
-        <summary>Have a transcript? Paste it instead</summary>
+        <summary>Or paste a transcript instead</summary>
         <Textarea
           className="transcript-field"
           label="Video transcript"
@@ -78,7 +80,7 @@ export default function QuestionForm() {
         loading={isLoading}
         disabled={isLoading}
       >
-        {isLoading ? "Checking your video" : "Find the useful bits"}
+        {isLoading ? "Checking your video" : "Get the verdict"}
         {!isLoading && <span aria-hidden="true">→</span>}
       </Button>
       <p className="privacy-note">
