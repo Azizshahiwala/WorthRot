@@ -1,9 +1,15 @@
 import Button from "./Button.jsx";
 
-export default function Toast({ id, message, type = "info", onDismiss }) {
+export default function Toast({
+  id,
+  message,
+  type = "info",
+  leaving = false,
+  onDismiss,
+}) {
   return (
     <div
-      className={`toast toast-${type}`}
+      className={`toast toast-${type}${leaving ? " is-leaving" : ""}`}
       role={type === "error" ? "alert" : "status"}
     >
       <p>{message}</p>

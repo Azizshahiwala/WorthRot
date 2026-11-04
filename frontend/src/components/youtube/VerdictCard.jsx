@@ -9,9 +9,26 @@ const verdictVariants = {
   "Can't verify": "unverified",
 };
 
+function hasTimestamp(value) {
+  return (
+    typeof value === "string" &&
+    /^(?:\d+:[0-5]\d|\d+:[0-5]\d:[0-5]\d)$/.test(value)
+  );
+}
+
 export default function VerdictCard({ result }) {
-  const verdict = result?.verdict || "Can't verify";
-  const evidence = Array.isArray(result?.evidence) ? result.evidence : [];
+  const requestedVerdict = result?.verdict || "Can't verify";
+  const responseEvidence = Array.isArray(result?.evidence) ? result.evidence : [];
+  const evidence = responseEvidence.filter(
+    (item) =>
+      typeof item?.quote === "string" &&
+      item.quote.trim() &&
+      hasTimestamp(item.timestamp),
+  );
+  const verdict =
+    ["Worth it", "Skim"].includes(requestedVerdict) && evidence.length === 0
+      ? "Can't verify"
+      : requestedVerdict;
   const missing = Array.isArray(result?.missing) ? result.missing : [];
   const confidence = Number.isFinite(result?.confidence)
     ? Math.round(result.confidence * 100)

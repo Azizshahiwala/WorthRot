@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useAnalysis } from "../../contexts/AnalysisContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import Button from "../ui/Button.jsx";
@@ -17,17 +16,10 @@ export default function QuestionForm() {
     analyze,
   } = useAnalysis();
   const { showToast } = useToast();
-  const [validationError, setValidationError] = useState("");
   const isLoading = status === "loading";
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setValidationError("");
-    if (!url.trim() && !transcript.trim()) {
-      setValidationError("Add a YouTube URL or paste a transcript to continue.");
-      return;
-    }
-
     try {
       await analyze();
     } catch (error) {
@@ -49,6 +41,7 @@ export default function QuestionForm() {
         placeholder="How do I make fresh pasta?"
         autoComplete="off"
         required
+        disabled={isLoading}
         value={question}
         onChange={(event) => setQuestion(event.target.value)}
       />
@@ -59,6 +52,7 @@ export default function QuestionForm() {
         type="url"
         placeholder="youtube.com/watch?v=..."
         autoComplete="url"
+        disabled={isLoading}
         value={url}
         onChange={(event) => setUrl(event.target.value)}
       />
@@ -70,17 +64,12 @@ export default function QuestionForm() {
           label="Video transcript"
           name="transcript"
           rows={6}
+          disabled={isLoading}
           placeholder="Paste transcript text here..."
           value={transcript}
           onChange={(event) => setTranscript(event.target.value)}
         />
       </details>
-
-      {validationError && (
-        <p className="inline-error" role="alert">
-          {validationError}
-        </p>
-      )}
 
       <Button
         type="submit"

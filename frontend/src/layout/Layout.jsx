@@ -10,7 +10,13 @@ export default function Layout() {
     <>
       <NavBar />
       <Outlet />
-      <div className="toast-host" aria-label="Notifications">
+      <div
+        className="toast-host"
+        role="region"
+        aria-label="Notifications"
+        aria-live="polite"
+        aria-relevant="additions text"
+      >
         {toasts.map((toast) => (
           <Toast key={toast.id} {...toast} onDismiss={dismissToast} />
         ))}

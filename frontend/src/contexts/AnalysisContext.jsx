@@ -12,6 +12,19 @@ export function AnalysisProvider({ children }) {
   const [error, setError] = useState("");
 
   const analyze = useCallback(async () => {
+    const validationMessage = !question.trim()
+      ? "Add a question to continue."
+      : !url.trim() && !transcript.trim()
+        ? "Add a YouTube URL or paste a transcript to continue."
+        : "";
+    if (validationMessage) {
+      const validationError = new Error(validationMessage);
+      setResult(null);
+      setError(validationMessage);
+      setStatus("error");
+      throw validationError;
+    }
+
     setStatus("loading");
     setResult(null);
     setError("");

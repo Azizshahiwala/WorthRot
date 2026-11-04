@@ -1,4 +1,5 @@
 function timestampSeconds(timestamp) {
+  if (typeof timestamp !== "string") return null;
   const parts = timestamp.split(":").map(Number);
   if (
     parts.length < 2 ||
@@ -14,16 +15,22 @@ function timestampUrl(videoUrl, timestamp) {
   const seconds = timestampSeconds(timestamp);
   if (seconds === null || !videoUrl) return null;
 
+  let link;
   try {
-    const link = new URL(videoUrl);
-    if (!["youtube.com", "www.youtube.com", "youtu.be", "www.youtu.be"].includes(link.hostname)) {
-      return null;
-    }
-    link.searchParams.set("t", String(seconds));
-    return link.href;
-  } catch {
-    return null;
+    link = new URL(videoUrl);
+  } catch (error) {
+    if (error instanceof TypeError) return null;
+    throw error;
   }
+
+  const isYouTube =
+    link.hostname === "youtube.com" ||
+    link.hostname.endsWith(".youtube.com") ||
+    link.hostname === "youtu.be" ||
+    link.hostname.endsWith(".youtu.be");
+  if (!isYouTube) return null;
+  link.searchParams.set("t", String(seconds));
+  return link.href;
 }
 
 export default function EvidenceList({ evidence = [], videoUrl }) {

@@ -40,6 +40,11 @@ semantics; a hand-built tab state would need to recreate URL handling,
 navigation, and refresh behavior. Flask's fallback is necessary for direct
 navigation and refreshes on a browser-history router.
 
+The required v6 dependency currently triggers two moderate `npm audit`
+advisories; npm suggests a breaking upgrade to v7. Keep the requested v6
+version and static, internal navigation targets for this scaffold. Reassess
+before accepting untrusted route destinations or adding server-side rendering.
+
 ## Consequences
 
 Components consume context through the matching hook, which throws when used
