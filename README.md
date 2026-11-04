@@ -11,27 +11,28 @@ implemented yet.
 
 ## Run locally
 
-Install the backend dependencies and start Flask:
+Install the backend dependencies:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt
-$env:PORT = "5000"
-python main.py
 ```
 
-In another terminal, install frontend dependencies and start Vite:
+Install frontend dependencies:
 
 ```powershell
 cd frontend
 npm install
-npm run dev
 ```
 
-Open the Vite URL printed in the terminal. Its `/health` and `/analyze`
-requests are proxied to Flask. The analyze endpoint intentionally returns
-`501 Not Implemented` until the analysis flow is added.
+From the repository root, run `start-worthrot.bat`. It opens separate terminal
+windows for Flask and Vite. Open the Vite URL printed in its terminal; its
+`/health` and `/analyze` requests are proxied to Flask. The analyze endpoint
+intentionally returns `501 Not Implemented` until the analysis flow is added.
+
+To start the servers manually, run `python main.py` in one terminal and
+`npm run dev` from `frontend` in another.
 
 To serve the built frontend through Flask, build it first:
 
