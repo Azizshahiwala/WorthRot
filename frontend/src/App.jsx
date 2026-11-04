@@ -1,81 +1,57 @@
-import { useState } from "react";
-import { analyzeVideo } from "./api.js";
+import { useAnalysis } from "./contexts/AnalysisContext.jsx";
+import { Card } from "./components/ui/Card.jsx";
+import QuestionForm from "./components/youtube/QuestionForm.jsx";
+import VerdictCard from "./components/youtube/VerdictCard.jsx";
 
 export default function App() {
-  const [question, setQuestion] = useState("");
-  const [url, setUrl] = useState("");
-  const [message, setMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setMessage("");
-    setIsSubmitting(true);
-
-    try {
-      const result = await analyzeVideo({ question, url });
-      setMessage(JSON.stringify(result));
-    } catch (error) {
-      setMessage(error.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+  const { status, result, error } = useAnalysis();
 
   return (
-    <main className="page">
-      <header className="masthead">
-        <a className="wordmark" href="/" aria-label="WorthRot home">
-          worth<span>rot</span>
-        </a>
-        <span className="tagline">Make your next video worth the time.</span>
-      </header>
-
-      <section className="intro" aria-labelledby="page-title">
-        <p className="eyebrow">A better way to watch</p>
-        <h1 id="page-title">Will this video answer your question?</h1>
-        <p className="description">
-          Share what you want to learn and a YouTube link. WorthRot will help
-          you decide whether to watch, skim, or skip.
-        </p>
-
-        <form className="analyze-form" onSubmit={handleSubmit}>
-          <label htmlFor="question">What are you trying to find out?</label>
-          <input
-            id="question"
-            name="question"
-            placeholder="How do I make fresh pasta?"
-            required
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-          />
-
-          <label htmlFor="video-url">YouTube video URL</label>
-          <input
-            id="video-url"
-            name="video-url"
-            type="url"
-            placeholder="https://www.youtube.com/watch?v=..."
-            required
-            value={url}
-            onChange={(event) => setUrl(event.target.value)}
-          />
-
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Checking..." : "Check this video"}
-          </button>
-        </form>
-
-        {message && (
-          <p className="notice" role="status" aria-live="polite">
-            {message}
-          </p>
-        )}
-        <p className="starter-note">
-          Starter project: the analysis endpoint is a placeholder and does not
-          generate verdicts yet.
+    <main className="page-shell">
+      <section className="hero" aria-labelledby="page-title">
+        <p className="eyebrow">A little less scrolling, a lot more learning</p>
+        <h1 id="page-title">Is this video worth your time?</h1>
+        <p className="hero-copy">
+          Tell us what you want to learn. Get a clear verdict with timestamped
+          evidence, so you can watch with a purpose.
         </p>
       </section>
+
+      <div className="analyzer-grid">
+        <Card className="form-card">
+          <QuestionForm />
+        </Card>
+
+        <section className="result-region" aria-live="polite">
+          {status === "idle" && (
+            <Card className="empty-result">
+              <span className="empty-mark" aria-hidden="true">
+                ↳
+              </span>
+              <h2>Your useful bits will show up here</h2>
+              <p>
+                Add a question and a video or transcript to get started. We’ll
+                show what matches and what’s missing.
+              </p>
+            </Card>
+          )}
+          {status === "loading" && (
+            <Card className="loading-result">
+              <span className="spinner spinner-md" role="status">
+                <span className="visually-hidden">Analyzing video</span>
+              </span>
+              <p>Looking for useful evidence…</p>
+            </Card>
+          )}
+          {status === "error" && (
+            <Card className="error-result" role="alert">
+              <h2>We couldn’t analyze this video</h2>
+              <p>{error}</p>
+            </Card>
+          )}
+          {status === "success" && <VerdictCard result={result} />}
+        </section>
+      </div>
     </main>
   );
 }
