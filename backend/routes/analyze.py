@@ -1,5 +1,6 @@
 from flask import Blueprint, Response, jsonify, request
 
+from backend.rate_limit import limited
 from backend.services.pipeline import analyze_video
 
 analyze_bp = Blueprint("analyze", __name__)
@@ -15,6 +16,7 @@ def _public_result(result: dict) -> dict:
 
 
 @analyze_bp.post("/analyze")
+@limited("analyze")
 def analyze() -> Response | tuple[Response, int]:
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):

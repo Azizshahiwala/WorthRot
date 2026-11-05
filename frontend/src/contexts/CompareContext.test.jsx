@@ -1,9 +1,15 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CompareProvider, useCompare } from "./CompareContext.jsx";
+import { RateLimitProvider } from "./RateLimitContext.jsx";
 
 vi.mock("../api.js", () => ({
   compare: vi.fn(),
+  getRateLimits: vi.fn().mockResolvedValue({
+    analyze: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+    compare: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+    media: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+  }),
 }));
 import { compare as requestCompare } from "../api.js";
 
@@ -32,9 +38,11 @@ function CompareHarness() {
 
 function renderCompare() {
   return render(
-    <CompareProvider>
-      <CompareHarness />
-    </CompareProvider>,
+    <RateLimitProvider>
+      <CompareProvider>
+        <CompareHarness />
+      </CompareProvider>
+    </RateLimitProvider>,
   );
 }
 
@@ -83,6 +91,8 @@ describe("CompareContext", () => {
 
   it("does not save Compare results to History", async () => {
     requestCompare.mockResolvedValue({
+      rate: null,
+      result: {
       question: "How does this work?",
       best: "abcdefghijk",
       ranking: [
@@ -108,6 +118,7 @@ describe("CompareContext", () => {
         },
       ],
       meta: { tokens_in_total: 20, tokens_out_total: 5 },
+      },
     });
 
     renderCompare();

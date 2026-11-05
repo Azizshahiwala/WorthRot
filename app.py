@@ -10,6 +10,7 @@ from backend.routes.analyze import analyze_bp
 from backend.routes.compare import compare_bp
 from backend.routes.health import health_bp
 from backend.routes.media import media_bp
+from backend.rate_limit import RateLimitSettings, RateLimiter, rate_limit_bp
 from backend.services.config import Settings
 from backend.services.media.ffmpeg_runner import log_ffmpeg_binary
 from backend.services.media.workdir import sweep_stale_workdirs
@@ -21,6 +22,9 @@ FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
 def create_app(frontend_dist: Path = FRONTEND_DIST) -> Flask:
     app = Flask(__name__)
     settings = Settings.from_env()
+    rate_limiter = RateLimiter(RateLimitSettings.from_env(settings.data_dir))
+    rate_limiter.purge_stale_on_startup()
+    app.extensions["rate_limiter"] = rate_limiter
     app.config["MAX_CONTENT_LENGTH"] = settings.max_upload_mb * 1024 * 1024 + 1024 * 1024
     log_ffmpeg_binary(settings.ffmpeg_path)
     sweep_stale_workdirs(settings)
@@ -28,6 +32,7 @@ def create_app(frontend_dist: Path = FRONTEND_DIST) -> Flask:
     app.register_blueprint(analyze_bp)
     app.register_blueprint(compare_bp)
     app.register_blueprint(media_bp)
+    app.register_blueprint(rate_limit_bp)
 
     @app.errorhandler(413)
     def request_too_large(_error) -> tuple[Response, int]:

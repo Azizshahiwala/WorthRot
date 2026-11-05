@@ -1,12 +1,14 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { compare as requestCompare } from "../api.js";
 import { isValidYouTubeUrl } from "../lib/youtubeUrl.js";
+import { useRateLimit } from "./RateLimitContext.jsx";
 
 const CompareContext = createContext(null);
 const MAX_COMPARE_VIDEOS = 3;
 const MIN_COMPARE_VIDEOS = 2;
 
 export function CompareProvider({ children }) {
+  const { update: updateRateLimit } = useRateLimit();
   const [question, setQuestion] = useState("");
   const [urls, setUrls] = useState(["", ""]);
   const [status, setStatus] = useState("idle");
@@ -58,14 +60,21 @@ export function CompareProvider({ children }) {
     setResult(null);
     setError("");
     try {
-      const response = await requestCompare({
+      const { result: response, rate } = await requestCompare({
         question: trimmedQuestion,
         urls: trimmedUrls,
       });
+      updateRateLimit("compare", rate);
       setResult(response);
       setStatus("success");
       return response;
     } catch (requestError) {
+      updateRateLimit(
+        "compare",
+        requestError?.status === 429
+          ? { ...(requestError.rate || {}), remaining: 0 }
+          : requestError?.rate,
+      );
       const message =
         requestError instanceof Error
           ? requestError.message
@@ -74,7 +83,7 @@ export function CompareProvider({ children }) {
       setStatus("error");
       throw new Error(message);
     }
-  }, [question, urls]);
+  }, [question, urls, updateRateLimit]);
 
   const reset = useCallback(() => {
     setQuestion("");

@@ -151,6 +151,23 @@ sequenceDiagram
 ## API contract
 
 - `GET /health` returns `{"status": "ok"}`.
+
+- `GET /limits` returns current availability without consuming quota:
+
+  ```json
+  {
+    "limits": {
+      "analyze": { "limit": 10, "remaining": 10, "resetsAt": "ISO 8601" },
+      "compare": { "limit": 10, "remaining": 10, "resetsAt": "ISO 8601" },
+      "media": { "limit": 10, "remaining": 10, "resetsAt": "ISO 8601" }
+    }
+  }
+  ```
+
+- Limited responses include `X-RateLimit-Limit`,
+  `X-RateLimit-Remaining`, and `X-RateLimit-Reset` headers. A daily denial is
+  `429` with `message`, `code` (`rate_limited` or `capacity_reached`),
+  `retry_after_seconds`, and `resets_at`, plus the `Retry-After` header.
 - `POST /analyze` accepts:
 
   ```json
@@ -238,7 +255,7 @@ sequenceDiagram
 ## Configuration
 
 See `.env.example` for provider, token/window, compare, media, upload, frame,
-ffmpeg, Gemini/ElevenLabs STT, and `DATA_DIR` settings. For local
+ffmpeg, Gemini/ElevenLabs STT, rate-limit, and `DATA_DIR` settings. For local
 development, the root `.env` file is loaded automatically and ignored by Git.
 Hosted deployments should configure the key, base URL, and model as
 environment variables. Media frame analysis reuses the same `MODEL_NAME` and
@@ -249,6 +266,36 @@ the Python standard library. Media transcription sends audio directly to the
 Gemini `generateContent` API using `GEMINI_API_KEY`; only Gemini HTTP 429
 responses trigger a fallback to ElevenLabs' speech-to-text API using
 `ELEVEN_LABS_API`.
+
+## Daily request limits
+
+`POST /analyze`, `/compare`, and `/analyze-media` each have an independent
+daily limit per client network. The default is 10 successful requests per
+feature and a global cap of 200 per feature. Reservations happen before route
+logic can parse a body or invoke an LLM or ffmpeg; non-2xx responses and
+exceptions release the reserved per-client and global slots. Cache hits and
+successful `Can't verify` responses count. A Compare request counts once even
+when it runs up to three video analyses.
+
+`backend/rate_limit.py` resolves the configured trusted forwarding hop,
+groups IPv6 addresses by `/64`, and stores only salted HMAC hashes and counts
+in a separate SQLite database under `DATA_DIR`. A conditional transactional
+update prevents concurrent requests from taking the last slot twice. Storage
+errors fail closed with 503. Old count rows are purged at startup and every
+100th limited request. `GET /limits` supplies the three per-network counters;
+limited responses also carry the `X-RateLimit-*` headers and provide reset
+details in 429 JSON responses.
+
+The frontend `RateLimitProvider` is nested after `HistoryProvider` and before
+the analysis, comparison, and media contexts. Each feature context updates
+only its own quota state from response headers. A shared `RateLimitNotice`
+shows availability and disables its form submit button when the server reports
+zero remaining.
+
+The About page discloses that salted IP hashes are retained for up to two
+days. The actual Embarko forwarding-header chain and hop count, persistence of
+`DATA_DIR` across restarts/redeploys, and provider-side spend limits are not
+verified; see `docs/adr/ADR-010-ip-rate-limiting.md`.
 
 ## Browser history
 

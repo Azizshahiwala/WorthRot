@@ -101,6 +101,12 @@ Errors return a JSON `message`; caption and LLM failures may also include a
 `result` with verdict `Can't verify`.
 `GET /health` returns `{"status": "ok"}`.
 
+`GET /limits` returns each feature's per-network `limit`, `remaining`, and
+`resetsAt` without consuming quota. Every limited route response includes
+`X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset` headers.
+Quota denials return `429` with a JSON `message`, `code` (`rate_limited` or
+`capacity_reached`), `retry_after_seconds`, and `resets_at`, plus `Retry-After`.
+
 `POST /analyze-media` accepts `multipart/form-data` with a question and one
 MP4/MP3 file. Its response is:
 
@@ -131,9 +137,23 @@ only when its verdict is `Worth it` or `Skim`. Individual video failures return
 `Can't verify` with an `error.message` and do not fail the request. Ranking
 metadata such as coverage and verified-fact counts remain internal.
 
+Each feature allows 10 successful requests per client network per calendar
+day by default; failures do not consume quota. Each feature has an independent
+counter, and a separate global daily cap protects provider spend. Compare
+counts as one request even though it may trigger up to three video analyses.
+
 ## Environment variables
 
-Keep `.env.example` current. Media configuration uses `MAX_UPLOAD_MB` (100),
+Keep `.env.example` current. Rate-limit configuration uses
+`RATE_LIMIT_ENABLED`, `RATE_LIMIT_PER_FEATURE`, optional `RATE_LIMIT_ANALYZE`,
+`RATE_LIMIT_COMPARE`, and `RATE_LIMIT_MEDIA` overrides,
+`GLOBAL_DAILY_CAP_PER_FEATURE`, `RATE_LIMIT_TZ`, `TRUSTED_PROXY_HOPS`,
+`RATE_LIMIT_SALT`, and optional `RATE_LIMIT_BYPASS_KEY`. An empty salt is
+persisted as a random `0600` file in `DATA_DIR`; only HMAC hashes of client
+addresses are stored, and count rows older than yesterday are purged.
+The About page explains the hashed-IP retention period and the reason it is
+used.
+Media configuration uses `MAX_UPLOAD_MB` (100),
 `MAX_MEDIA_SECONDS` (300), `MEDIA_TIMEOUT_SECONDS` (90),
 `FFMPEG_TIMEOUT_SECONDS` (60), `FRAME_INTERVAL_SECONDS` (5),
 `FRAME_MAX_SIDE` (768), `MAX_FRAMES` (16),

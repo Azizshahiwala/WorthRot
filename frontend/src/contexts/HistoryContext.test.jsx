@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AnalysisProvider, useAnalysis } from "./AnalysisContext.jsx";
 import { HistoryProvider, useHistory } from "./HistoryContext.jsx";
 import { ToastProvider } from "./ToastContext.jsx";
+import { RateLimitProvider } from "./RateLimitContext.jsx";
 import { HISTORY_STORAGE_KEY, loadHistory } from "../lib/historyStorage.js";
 
 let currentHistory;
@@ -119,10 +120,12 @@ function renderAnalysis() {
   return render(
     <ToastProvider>
       <HistoryProvider>
-        <AnalysisProvider>
-          <AnalysisHarness />
-          <HistoryHarness />
-        </AnalysisProvider>
+        <RateLimitProvider>
+          <AnalysisProvider>
+            <AnalysisHarness />
+            <HistoryHarness />
+          </AnalysisProvider>
+        </RateLimitProvider>
       </HistoryProvider>
     </ToastProvider>,
   );
@@ -240,9 +243,19 @@ describe("HistoryContext", () => {
   });
 
   it("automatically saves successful analyses without metadata", async () => {
-    globalThis.fetch = async () => ({
+    globalThis.fetch = async (url) => ({
       ok: true,
+      headers: { get: () => null },
       json: async () => ({
+        ...(url === "/limits"
+          ? {
+              limits: {
+                analyze: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+                compare: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+                media: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+              },
+            }
+          : {
         verdict: "Skim",
         facts: [{ text: "A fact", timestamp: "00:12", url: "" }],
         missing: [],
@@ -252,6 +265,7 @@ describe("HistoryContext", () => {
           tokens_in: 20,
           tokens_out: 5,
         },
+            }),
       }),
     });
     renderAnalysis();
@@ -270,9 +284,19 @@ describe("HistoryContext", () => {
   });
 
   it("does not save failed analyses", async () => {
-    globalThis.fetch = async () => ({
+    globalThis.fetch = async (url) => ({
       ok: false,
-      json: async () => ({ message: "Analysis failed." }),
+      headers: { get: () => null },
+      json: async () =>
+        url === "/limits"
+          ? {
+              limits: {
+                analyze: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+                compare: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+                media: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+              },
+            }
+          : { message: "Analysis failed." },
     });
     renderAnalysis();
 

@@ -43,10 +43,11 @@ export const about = {
     {
       title: "Private by default",
       description:
-        "No accounts, no cookies. Uploaded files are deleted after processing.",
+        "No accounts, no cookies. A hashed IP is kept for up to 2 days to enforce the daily limit. Uploaded files are deleted after processing.",
     },
   ],
   limits: [
+    "Each feature allows 10 requests per day per network.",
     "Works with YouTube videos that have captions.",
     "Results are only as good as the transcript.",
     "Other video platforms are not supported.",

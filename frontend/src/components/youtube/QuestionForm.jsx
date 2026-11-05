@@ -1,5 +1,7 @@
 import { useAnalysis } from "../../contexts/AnalysisContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
+import { useRateLimit } from "../../contexts/RateLimitContext.jsx";
+import RateLimitNotice from "../RateLimitNotice.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
 import Textarea from "../ui/Textarea.jsx";
@@ -16,7 +18,9 @@ export default function QuestionForm() {
     analyze,
   } = useAnalysis();
   const { showToast } = useToast();
+  const { limits } = useRateLimit();
   const isLoading = status === "loading";
+  const limitReached = limits.analyze?.remaining === 0;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -79,11 +83,12 @@ export default function QuestionForm() {
         className="submit-button"
         size="lg"
         loading={isLoading}
-        disabled={isLoading}
+        disabled={isLoading || limitReached}
       >
         {isLoading ? "Checking your video" : "Get the verdict"}
         {!isLoading && <span aria-hidden="true">→</span>}
       </Button>
+      <RateLimitNotice feature="analyze" />
       <p className="privacy-note">
         No playback, downloads, or made-up answers. Just useful evidence.
       </p>

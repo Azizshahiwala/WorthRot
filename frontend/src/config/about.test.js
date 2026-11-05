@@ -52,7 +52,12 @@ describe("about content", () => {
     expect(
       about.principles.find(({ title }) => title === "Private by default")
         .description,
-    ).toBe("No accounts, no cookies. Uploaded files are deleted after processing.");
+    ).toBe(
+      "No accounts, no cookies. A hashed IP is kept for up to 2 days to enforce the daily limit. Uploaded files are deleted after processing.",
+    );
+    expect(about.limits).toContain(
+      "Each feature allows 10 requests per day per network.",
+    );
     expect(about.limits).toContain(
       "The Other tab accepts MP4 and MP3 files up to a size and length cap.",
     );

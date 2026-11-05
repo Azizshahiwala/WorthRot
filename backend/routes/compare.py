@@ -5,6 +5,7 @@ from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError
 from flask import Blueprint, Response, jsonify, request
 
 from backend.models import VideoResult
+from backend.rate_limit import limited
 from backend.services.config import Settings
 from backend.services.errors import ConfigurationError, InvalidInputError
 from backend.services.pipeline import analyze_video
@@ -52,6 +53,7 @@ def _public_video_result(result: VideoResult) -> dict:
 
 
 @compare_bp.post("/compare")
+@limited("compare")
 def compare() -> Response | tuple[Response, int]:
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):

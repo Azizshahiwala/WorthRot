@@ -13,6 +13,13 @@ import { HistoryProvider } from "./HistoryContext.jsx";
 import { ToastProvider } from "./ToastContext.jsx";
 import { useOther } from "./OtherContext.jsx";
 import { OtherProvider } from "./OtherContext.jsx";
+import { RateLimitProvider } from "./RateLimitContext.jsx";
+
+const limitsResponse = {
+  analyze: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+  compare: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+  media: { limit: 10, remaining: 10, resetsAt: "2026-11-06T00:00:00Z" },
+};
 
 describe("OtherContext", () => {
   afterEach(() => {
@@ -35,15 +42,19 @@ describe("OtherContext", () => {
 
   it("saves successful media results in history without storing the upload", async () => {
     localStorage.clear();
-    globalThis.fetch = async () => ({
+    globalThis.fetch = async (url) => ({
       ok: true,
-      json: async () => ({
-        verdict: "Can't verify",
-        source: "frames",
-        facts: [{ text: "A frame fact", timestamp: null, url: null }],
-        missing: ["speech not available"],
-        meta: { tokens_in: 0, tokens_out: 0, frames_sent: 2 },
-      }),
+      headers: { get: () => null },
+      json: async () =>
+        url === "/limits"
+          ? { limits: limitsResponse }
+          : {
+              verdict: "Can't verify",
+              source: "frames",
+              facts: [{ text: "A frame fact", timestamp: null, url: null }],
+              missing: ["speech not available"],
+              meta: { tokens_in: 0, tokens_out: 0, frames_sent: 2 },
+            },
     });
 
     function OtherHarness() {
@@ -62,9 +73,11 @@ describe("OtherContext", () => {
     render(
       <ToastProvider>
         <HistoryProvider>
-          <OtherProvider>
-            <OtherHarness />
-          </OtherProvider>
+          <RateLimitProvider>
+            <OtherProvider>
+              <OtherHarness />
+            </OtherProvider>
+          </RateLimitProvider>
         </HistoryProvider>
       </ToastProvider>,
     );

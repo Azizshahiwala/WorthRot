@@ -2,11 +2,13 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 import { analyzeMedia as requestMediaAnalysis } from "../api.js";
 import { validateMediaFile } from "../lib/mediaFile.js";
 import { useHistory } from "./HistoryContext.jsx";
+import { useRateLimit } from "./RateLimitContext.jsx";
 
 const OtherContext = createContext(null);
 
 export function OtherProvider({ children }) {
   const { addEntry } = useHistory();
+  const { update: updateRateLimit } = useRateLimit();
   const [question, setQuestion] = useState("");
   const [file, setSelectedFile] = useState(null);
   const [status, setStatus] = useState("idle");
@@ -53,7 +55,8 @@ export function OtherProvider({ children }) {
     setResult(null);
     setError("");
     try {
-      const response = await requestMediaAnalysis(formData);
+      const { result: response, rate } = await requestMediaAnalysis(formData);
+      updateRateLimit("media", rate);
       addEntry({
         question: question.trim(),
         videoId: "",
@@ -65,6 +68,12 @@ export function OtherProvider({ children }) {
       setStatus("success");
       return response;
     } catch (requestError) {
+      updateRateLimit(
+        "media",
+        requestError?.status === 429
+          ? { ...(requestError.rate || {}), remaining: 0 }
+          : requestError?.rate,
+      );
       const message =
         requestError instanceof Error
           ? requestError.message
@@ -73,7 +82,7 @@ export function OtherProvider({ children }) {
       setStatus("error");
       throw new Error(message);
     }
-  }, [addEntry, file, question]);
+  }, [addEntry, file, question, updateRateLimit]);
 
   const reset = useCallback(() => {
     setQuestion("");

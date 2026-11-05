@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { analyzeVideo } from "../api.js";
 import { useHistory } from "./HistoryContext.jsx";
+import { useRateLimit } from "./RateLimitContext.jsx";
 
 const AnalysisContext = createContext(null);
 
 export function AnalysisProvider({ children }) {
   const { addEntry } = useHistory();
+  const { update: updateRateLimit } = useRateLimit();
   const [question, setQuestion] = useState("");
   const [url, setUrl] = useState("");
   const [transcript, setTranscript] = useState("");
@@ -32,7 +34,12 @@ export function AnalysisProvider({ children }) {
     setError("");
 
     try {
-      const response = await analyzeVideo({ question, url, transcript });
+      const { result: response, rate } = await analyzeVideo({
+        question,
+        url,
+        transcript,
+      });
+      updateRateLimit("analyze", rate);
       addEntry({
         question,
         url: url.trim(),
@@ -49,6 +56,12 @@ export function AnalysisProvider({ children }) {
       setStatus("success");
       return response;
     } catch (requestError) {
+      updateRateLimit(
+        "analyze",
+        requestError?.status === 429
+          ? { ...(requestError.rate || {}), remaining: 0 }
+          : requestError?.rate,
+      );
       const message =
         requestError instanceof Error
           ? requestError.message
@@ -68,7 +81,7 @@ export function AnalysisProvider({ children }) {
       setStatus("error");
       throw new Error(message);
     }
-  }, [question, url, transcript, addEntry]);
+  }, [question, url, transcript, addEntry, updateRateLimit]);
 
   const reset = useCallback(() => {
     setQuestion("");

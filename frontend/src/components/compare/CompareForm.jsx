@@ -1,4 +1,7 @@
 import { useCompare } from "../../contexts/CompareContext.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
+import { useRateLimit } from "../../contexts/RateLimitContext.jsx";
+import RateLimitNotice from "../RateLimitNotice.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
 
@@ -14,11 +17,14 @@ export default function CompareForm() {
     status,
     error,
   } = useCompare();
+  const { showToast } = useToast();
+  const { limits } = useRateLimit();
   const loading = status === "loading";
+  const limitReached = limits.compare?.remaining === 0;
 
   function handleSubmit(event) {
     event.preventDefault();
-    void compare().catch(() => {});
+    void compare().catch((error) => showToast(error.message, "error"));
   }
 
   return (
@@ -67,10 +73,11 @@ export default function CompareForm() {
         >
           Add another video
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading || limitReached}>
           Compare videos
         </Button>
       </div>
+      <RateLimitNotice feature="compare" />
       {loading && (
         <span className="compare-loading-label" role="status">
           Comparing videos

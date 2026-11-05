@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { analyzeMedia } from "./api.js";
+import { analyzeMedia, parseRateLimitHeaders } from "./api.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -23,11 +23,33 @@ describe("analyzeMedia", () => {
       }),
     );
 
-    await analyzeMedia(formData);
+    const response = await analyzeMedia(formData);
     const [url, options] = fetch.mock.calls[0];
     expect(url).toBe("/analyze-media");
     expect(options.method).toBe("POST");
     expect(options.body).toBe(formData);
     expect(options.headers).toBeUndefined();
+    expect(response.result.verdict).toBe("Can't verify");
+    expect(response.rate).toBeNull();
+  });
+});
+
+describe("parseRateLimitHeaders", () => {
+  it("parses limit, remaining count, and reset time", () => {
+    const headers = new Headers({
+      "X-RateLimit-Limit": "10",
+      "X-RateLimit-Remaining": "7",
+      "X-RateLimit-Reset": "1793923200",
+    });
+
+    expect(parseRateLimitHeaders(headers)).toEqual({
+      limit: 10,
+      remaining: 7,
+      resetsAt: new Date(1793923200 * 1000).toISOString(),
+    });
+  });
+
+  it("returns null when the response has no valid rate headers", () => {
+    expect(parseRateLimitHeaders(new Headers())).toBeNull();
   });
 });

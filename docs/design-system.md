@@ -122,6 +122,25 @@ spacing, and typography tokens.
 - **Don't:** Put essential instructions only in a toast.
 - **Example:** `<Toast message="Saved" type="info" onDismiss={dismissToast} />`
 
+### RateLimitNotice
+
+- **Description:** Compact daily-availability status shown beneath an
+  analysis form's submit action.
+- **Variants:** Normal remaining count, exhausted with local reset time, and
+  unknown while loading or when the limits endpoint is unavailable.
+- **Sizes:** Not applicable.
+- **Props:** `feature` (`analyze`, `compare`, or `media`); reads quota state
+  through `useRateLimit()`.
+- **States:** Loading/unknown, available, and exhausted.
+- **Accessibility:** Uses a polite live status region and text rather than
+  color alone. The parent form disables its submit button when remaining is
+  zero.
+- **Do:** Keep the server authoritative and show the reset time in the user's
+  local timezone.
+- **Don't:** Treat an unavailable client-side counter as enforcement or hide
+  the status from assistive technology.
+- **Example:** `<RateLimitNotice feature="analyze" />`
+
 ## Patterns
 
 ### Form
@@ -136,6 +155,11 @@ also announced as toasts.
 Use inline errors for actionable validation and request failures. Use toasts
 for short-lived supplemental feedback. The analysis result area uses polite
 live announcements; errors use alert semantics.
+
+`RateLimitNotice` sits below the YouTube, Compare, and Other submit controls.
+It reports the remaining count or local reset time; the matching feature
+context updates it from server headers, while a 429 also triggers a toast and
+the form's inline error.
 
 ### Data display
 

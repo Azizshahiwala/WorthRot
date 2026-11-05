@@ -1,6 +1,9 @@
 import { useId } from "react";
 import { MAX_UPLOAD_MB } from "../../config/limits.js";
 import { useOther } from "../../contexts/OtherContext.jsx";
+import { useToast } from "../../contexts/ToastContext.jsx";
+import { useRateLimit } from "../../contexts/RateLimitContext.jsx";
+import RateLimitNotice from "../RateLimitNotice.jsx";
 import Button from "../ui/Button.jsx";
 import Input from "../ui/Input.jsx";
 import Spinner from "../ui/Spinner.jsx";
@@ -21,11 +24,14 @@ export default function MediaForm() {
     status,
     error,
   } = useOther();
+  const { showToast } = useToast();
+  const { limits } = useRateLimit();
   const loading = status === "loading";
+  const limitReached = limits.media?.remaining === 0;
 
   function handleSubmit(event) {
     event.preventDefault();
-    void analyze().catch(() => {});
+    void analyze().catch((error) => showToast(error.message, "error"));
   }
 
   return (
@@ -67,10 +73,11 @@ export default function MediaForm() {
         frames may be sent to an AI provider.
       </p>
       <div className="media-form-actions">
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading || limitReached}>
           Analyze file
         </Button>
       </div>
+      <RateLimitNotice feature="media" />
       {loading && (
         <div className="media-loading" aria-live="polite">
           <Spinner label="Checking your file" />

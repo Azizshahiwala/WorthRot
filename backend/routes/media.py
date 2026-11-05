@@ -4,6 +4,7 @@ import threading
 from flask import Blueprint, Response, jsonify, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
+from backend.rate_limit import limited
 from backend.services.config import Settings
 from backend.services.media.analyzer import analyze_media_upload
 from backend.services.media.errors import MediaBusyError, MediaError
@@ -22,6 +23,7 @@ def handle_upload_too_large(
 
 
 @media_bp.post("/analyze-media")
+@limited("media")
 def analyze_media() -> Response | tuple[Response, int]:
     settings = Settings.from_env()
     sweep_stale_workdirs(settings)
