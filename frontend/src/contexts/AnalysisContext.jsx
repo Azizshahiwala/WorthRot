@@ -31,7 +31,12 @@ export function AnalysisProvider({ children }) {
 
     try {
       const response = await analyzeVideo({ question, url, transcript });
-      setResult(response);
+      setResult({
+        verdict: response.verdict,
+        facts: response.facts,
+        missing: response.missing,
+        meta: response.meta,
+      });
       setStatus("success");
       return response;
     } catch (requestError) {
@@ -39,6 +44,17 @@ export function AnalysisProvider({ children }) {
         requestError instanceof Error
           ? requestError.message
           : "The analysis request failed.";
+      const failedResult = requestError?.analysisResult;
+      setResult(
+        failedResult
+          ? {
+              verdict: failedResult.verdict,
+              facts: failedResult.facts,
+              missing: failedResult.missing,
+              meta: failedResult.meta,
+            }
+          : null,
+      );
       setError(message);
       setStatus("error");
       throw new Error(message);

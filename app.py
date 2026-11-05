@@ -1,7 +1,10 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, send_from_directory
+
+load_dotenv()
 
 from backend.routes.analyze import analyze_bp
 from backend.routes.health import health_bp

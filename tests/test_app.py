@@ -8,13 +8,11 @@ def test_health_endpoint_returns_ok():
     assert response.get_json() == {"status": "ok"}
 
 
-def test_analyze_endpoint_is_an_explicit_placeholder():
+def test_analyze_endpoint_validates_requests_instead_of_returning_placeholder():
     response = create_app().test_client().post("/analyze", json={})
 
-    assert response.status_code == 501
-    assert response.get_json() == {
-        "message": "Video analysis has not been implemented yet."
-    }
+    assert response.status_code == 400
+    assert response.get_json() == {"message": "Add a question to continue."}
 
 
 def test_home_explains_when_frontend_has_not_been_built(tmp_path):
@@ -44,7 +42,5 @@ def test_client_route_fallback_does_not_shadow_api(tmp_path):
         "/analyze", json={}
     )
 
-    assert response.status_code == 501
-    assert response.get_json() == {
-        "message": "Video analysis has not been implemented yet."
-    }
+    assert response.status_code == 400
+    assert response.get_json() == {"message": "Add a question to continue."}

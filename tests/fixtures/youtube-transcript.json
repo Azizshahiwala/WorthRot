@@ -1,0 +1,22 @@
+[
+  {
+    "start": 0.0,
+    "duration": 4.0,
+    "text": "Use a whetstone to sharpen a knife."
+  },
+  {
+    "start": 4.0,
+    "duration": 4.0,
+    "text": "Keep the blade at a thirty degree angle."
+  },
+  {
+    "start": 45.0,
+    "duration": 4.0,
+    "text": "Cook pasta in salted boiling water."
+  },
+  {
+    "start": 50.0,
+    "duration": 5.0,
+    "text": "Reserve pasta water before draining."
+  }
+]

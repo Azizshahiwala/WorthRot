@@ -30,7 +30,12 @@ export default function NavBar() {
   return (
     <header className="site-header">
       <div className="nav-inner">
-        <NavLink className="brand" to="/" onClick={closeMenu}>
+        <NavLink
+          className="brand"
+          to="/"
+          onClick={closeMenu}
+          aria-label="WorthRot home"
+        >
           <span className="brand-mark" aria-hidden="true">
             W
           </span>

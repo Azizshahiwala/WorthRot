@@ -6,6 +6,7 @@ __pycache__/
 htmlcov/
 node_modules/
 frontend/dist/
+src/backend/data/
 .env
 .env.*
 *.zip

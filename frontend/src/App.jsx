@@ -53,15 +53,7 @@ export default function App() {
         <section className="result-region" aria-live="polite">
           {status === "idle" && (
             <Card className="empty-result">
-              <span className="step-label">Waiting on your source</span>
-              <span className="empty-mark" aria-hidden="true">
-                02
-              </span>
-              <h2>No verdict without receipts.</h2>
-              <p>
-                Add a question and a video or transcript. Your verdict, proof,
-                and missing pieces will land here.
-              </p>
+              <span>No facts yet.</span>
             </Card>
           )}
           {status === "loading" && (
@@ -73,10 +65,13 @@ export default function App() {
             </Card>
           )}
           {status === "error" && (
-            <Card className="error-result" role="alert">
-              <h2>We couldn’t analyze this video</h2>
-              <p>{error}</p>
-            </Card>
+            <>
+              <Card className="error-result" role="alert">
+                <h2>We couldn’t analyze this video</h2>
+                <p>{error}</p>
+              </Card>
+              {result && <VerdictCard result={result} />}
+            </>
           )}
           {status === "success" && <VerdictCard result={result} />}
         </section>

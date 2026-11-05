@@ -1,15 +1,16 @@
 # WorthRot design system
 
-The interface uses a calm green palette, compact rounded controls, and a
-consistent 4px spacing scale. Components use CSS custom properties from
-`frontend/src/styles/tokens.css`; component styles do not define their own
-colors, spacing, or font-size values.
+The interface uses a maximalist video-store/zine direction: tomato red,
+cobalt, lemon, warm paper, condensed display type, and high-contrast inked
+edges. Components use CSS custom properties from
+`frontend/src/styles/tokens.css`; new data-display styles use shared color,
+spacing, and typography tokens.
 
 ## Tokens
 
 | Category | Tokens | Use |
 |---|---|---|
-| Brand colors | `--color-brand`, `--color-brand-hover`, `--color-brand-contrast` | Primary actions and brand emphasis |
+| Brand colors | `--color-brand`, `--color-brand-hover`, `--color-brand-contrast`, `--color-brand-text` | Brand surfaces, accessible text contrast, and emphasis |
 | Neutral colors | `--color-bg`, `--color-surface`, `--color-border`, `--color-text`, `--color-text-muted` | Page, cards, borders, and text |
 | Verdict colors | `--color-worth`, `--color-skim`, `--color-rot`, `--color-unverified` and their `-bg` pairs | Verdict badges and evidence |
 | Feedback colors | `--color-success`, `--color-warning`, `--color-danger`, `--color-info` | Toasts and inline feedback |
@@ -138,9 +139,13 @@ live announcements; errors use alert semantics.
 
 ### Data display
 
-`VerdictCard` pairs a text verdict badge with confidence, evidence quotes, and
-missing topics. `EvidenceList` links a valid timestamp to the corresponding
-YouTube time when a video URL is available.
+`VerdictCard` is a compact facts panel. It places the text verdict badge before
+a short bulleted list; each line pairs one verified fact with its timestamp
+link. Transcript-only facts show a timestamp without a link. Missing topics
+appear as muted chips only when present. There are no confidence scores, quote
+blocks, summaries, or explanatory paragraphs in the success result. In
+development only, a muted metadata line shows input/output token usage and a
+cache tag for cached results.
 
 ## Contrast verification
 
@@ -149,25 +154,28 @@ background token pairs. WCAG AA requires at least 4.5:1 for normal text.
 
 | Theme | Foreground / background | Contrast |
 |---|---|---:|
-| Light | `--color-text` / `--color-bg` | 15.04:1 |
-| Light | `--color-text-muted` / `--color-bg` | 6.06:1 |
-| Light | `--color-text-muted` / `--color-surface` | 6.54:1 |
-| Light | `--color-text` / `--color-surface` | 16.21:1 |
-| Light | Button contrast / `--color-brand` | 7.85:1 |
-| Light | Button contrast / `--color-brand-hover` | 10.56:1 |
-| Light | Worth / worth tint | 5.85:1 |
-| Light | Skim / skim tint | 6.43:1 |
-| Light | Rot / rot tint | 5.70:1 |
-| Light | Unverified / unverified tint | 6.62:1 |
-| Dark | `--color-text` / `--color-bg` | 16.02:1 |
-| Dark | `--color-text-muted` / `--color-bg` | 10.66:1 |
-| Dark | `--color-text-muted` / `--color-surface` | 9.43:1 |
-| Dark | `--color-text` / `--color-surface` | 14.17:1 |
-| Dark | Button contrast / `--color-brand` | 9.82:1 |
-| Dark | Button contrast / `--color-brand-hover` | 11.27:1 |
-| Dark | Worth / worth tint | 7.50:1 |
-| Dark | Skim / skim tint | 7.98:1 |
-| Dark | Rot / rot tint | 6.68:1 |
-| Dark | Unverified / unverified tint | 7.79:1 |
+| Light | `--color-text` / `--color-bg` | 14.87:1 |
+| Light | `--color-text-muted` / `--color-bg` | 7.55:1 |
+| Light | `--color-text-muted` / `--color-surface` | 8.40:1 |
+| Light | `--color-text` / `--color-surface` | 16.54:1 |
+| Light | `--color-brand-text` / `--color-surface` | 6.92:1 |
+| Light | `--color-brand-contrast` / `--color-brand` | 4.69:1 |
+| Light | Button text / primary button | 11.76:1 |
+| Light | Worth / worth tint | 5.61:1 |
+| Light | Skim / skim tint | 5.65:1 |
+| Light | Rot / rot tint | 5.18:1 |
+| Light | Unverified / unverified tint | 8.41:1 |
+| Light | Empty-state text / blue surface | 7.27:1 |
+| Dark | `--color-text` / `--color-bg` | 16.31:1 |
+| Dark | `--color-text-muted` / `--color-bg` | 10.40:1 |
+| Dark | `--color-text-muted` / `--color-surface` | 9.25:1 |
+| Dark | `--color-text` / `--color-surface` | 14.50:1 |
+| Dark | `--color-brand-text` / `--color-surface` | 7.06:1 |
+| Dark | `--color-brand-contrast` / `--color-brand` | 6.56:1 |
+| Dark | Worth / worth tint | 7.76:1 |
+| Dark | Skim / skim tint | 8.15:1 |
+| Dark | Rot / rot tint | 6.24:1 |
+| Dark | Unverified / unverified tint | 8.26:1 |
+| Dark | Empty-state text / blue surface | 4.94:1 |
 
 All listed text pairs exceed the 4.5:1 normal-text threshold.

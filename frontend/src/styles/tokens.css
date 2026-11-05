@@ -1,8 +1,9 @@
 :root {
   color-scheme: light;
-  --color-brand: #e7442b;
+  --color-brand: #f04a30;
   --color-brand-hover: #c92f1b;
-  --color-brand-contrast: #fffaf0;
+  --color-brand-contrast: #1c1b19;
+  --color-brand-text: #a52818;
   --color-bg: #f4eedf;
   --color-surface: #fffaf0;
   --color-border: #1c1b19;
@@ -12,13 +13,13 @@
   --color-worth-bg: #dcebd7;
   --color-skim: #765000;
   --color-skim-bg: #f6e3a8;
-  --color-rot: #b52e28;
+  --color-rot: #a72520;
   --color-rot-bg: #f6d4c9;
   --color-unverified: #343a50;
   --color-unverified-bg: #e0dfd7;
   --color-success: #176641;
   --color-warning: #765000;
-  --color-danger: #b52e28;
+  --color-danger: #a72520;
   --color-info: #2849bd;
   --color-focus: #2849bd;
   --color-accent-blue: #2849bd;
@@ -65,7 +66,7 @@
   --control-height: 3rem;
   --focus-ring-width: 3px;
   --border-width: 2px;
-  --min-app-width: 20rem;
+  --min-app-width: 12.5rem;
   --textarea-min-height: 8rem;
   --hero-max-width: 78rem;
   --hero-title-max-width: 54rem;
@@ -85,6 +86,7 @@
   --color-brand: #ff765e;
   --color-brand-hover: #ff927d;
   --color-brand-contrast: #1c1b19;
+  --color-brand-text: #ff927d;
   --color-bg: #1b1b19;
   --color-surface: #262521;
   --color-border: #f4eedf;
@@ -103,7 +105,7 @@
   --color-danger: #ff9686;
   --color-info: #9eafff;
   --color-focus: #9eafff;
-  --color-accent-blue: #526fe9;
+  --color-accent-blue: #4a64d6;
   --color-accent-yellow: #f4d447;
   --color-pattern: #37352e;
   --color-overlay: #00000066;

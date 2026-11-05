@@ -6,7 +6,7 @@ Instructions for AI coding agents working in this repo. Read fully before making
 
 WorthRot tells a user whether a video covers their question.
 Input: a question plus a YouTube URL (or a pasted transcript).
-Output: a verdict (`Worth it` / `Skim` / `Rot`), timestamped evidence quotes, and what is missing.
+Output: a verdict (`Worth it` / `Skim` / `Rot` / `Can't verify`), concise timestamped facts, and what is missing.
 Stretch: rank 1-3 videos for the same question.
 
 Built for the Embarko AI hackathon. Deployed to Embarko (cloud hosting for small apps).
@@ -15,7 +15,7 @@ Built for the Embarko AI hackathon. Deployed to Embarko (cloud hosting for small
 
 - Backend: Python, Flask
 - Frontend: React + Vite (built output served by Flask)
-- LLM: Claude API (key via environment variable only)
+- LLM: Bazaarlink OpenAI-compatible API (key via environment variable only)
 - Storage: none required; optional SQLite cache in `DATA_DIR`
 
 ## Repo layout
@@ -53,14 +53,14 @@ Run `pytest -q` and `npm run build` before declaring any task done.
 
 - Read the port from `PORT` and bind to `0.0.0.0`.
 - No WebSockets, no crontab, no background timer libraries. Use plain request/response.
-- Persist data only under the directory in the `DATA_DIR` environment variable. Never write next to the code.
+- Persist data only under `DATA_DIR`. The approved local-development default is `src/backend/data`; hosted deployments must supply their persistent `DATA_DIR` and must not store data in the code directory.
 - Keep the Embarko manifest at the top of the repo folder. Check https://embarko.ai/docs/quickstart.md for the exact filename and fields before editing it.
 - Never hardcode secrets. Read them from environment variables and keep `.env.example` current.
 
 ## Product rules (do not violate)
 
-1. **Evidence required.** A `Worth it` or `Skim` verdict must include at least one quote with a timestamp.
-2. **Verify quotes.** `verifier.py` must confirm every returned quote appears in the transcript text. Drop or downgrade any that don't.
+1. **Evidence required.** A `Worth it` or `Skim` verdict must include at least one concise fact with a timestamp.
+2. **Verify facts.** `verifier.py` must confirm each fact's internal quote appears in its timestamped transcript window. The internal quote is not returned to the client. Drop or downgrade facts that do not verify.
 3. **Never guess.** If there is no transcript or no evidence, return `Rot` or `Can't verify`, never an invented answer.
 4. **No scraping.** Do not scrape Instagram or download media. Instagram support is paste-transcript only.
 5. **Length cap.** Reject or truncate videos over `MAX_VIDEO_MINUTES` (default 45) with a clear message.
@@ -74,17 +74,26 @@ Run `pytest -q` and `npm run build` before declaring any task done.
 { "question": "string", "urls": ["string"], "transcript": "string (optional)" }
 ```
 
-Response per video:
+Response for the single analyzed video:
 
 ```json
 {
   "verdict": "Worth it | Skim | Rot | Can't verify",
-  "confidence": 0.0,
-  "evidence": [{ "quote": "string", "timestamp": "mm:ss", "url": "string" }],
-  "missing": ["string"]
+  "facts": [{ "text": "string", "timestamp": "mm:ss", "url": "string" }],
+  "missing": ["string"],
+  "meta": {
+    "video_id": "string",
+    "cached": false,
+    "tokens_in": 0,
+    "tokens_out": 0
+  }
 }
 ```
 
+The internal quote used to verify a fact is not returned. For pasted
+transcripts without a YouTube URL, the fact's `url` is an empty string.
+Errors return a JSON `message`; caption and LLM failures may also include a
+`result` with verdict `Can't verify`.
 `GET /health` returns `{"status": "ok"}`.
 
 Do not change this schema without updating `models.py`, the frontend, tests, and `docs/architecture.md` together.

@@ -1,0 +1,4 @@
+Extract only facts supported by the transcript that answer the question.
+Return JSON only with this shape:
+{"coverage":"full|partial|none","facts":[{"f":"fact, at most 15 words","t":"mm:ss","q":"exact quote, at most 12 words"}],"missing":["item, at most 8 words"]}
+Use at most 5 facts and 3 missing items. Use each window's displayed timestamp exactly; do not infer a more precise time. Quotes must be exact words from that window. If the transcript does not answer the question, use coverage "none" and an empty facts array. No introductions, explanations, opinions, or markdown.

@@ -67,7 +67,8 @@ export default function QuestionForm() {
           name="transcript"
           rows={6}
           disabled={isLoading}
-          placeholder="Paste transcript text here..."
+          placeholder="[00:12] Paste a transcript line with its timestamp..."
+          hint="Include timestamps such as [00:12] so each fact can be verified."
           value={transcript}
           onChange={(event) => setTranscript(event.target.value)}
         />
