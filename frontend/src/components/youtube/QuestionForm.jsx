@@ -40,7 +40,7 @@ export default function QuestionForm() {
       <Input
         label="Your question"
         name="question"
-        placeholder="How do I make fresh pasta?"
+        placeholder="Does this video explains photosynthesis?"
         autoComplete="off"
         required
         disabled={isLoading}
