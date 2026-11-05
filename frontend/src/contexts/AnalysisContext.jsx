@@ -37,6 +37,7 @@ export function AnalysisProvider({ children }) {
         question,
         url: url.trim(),
         videoId: response.meta.video_id,
+        source: url.trim() ? "youtube" : "transcript",
         result: response,
       });
       setResult({

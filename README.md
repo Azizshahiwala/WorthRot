@@ -23,12 +23,19 @@ For live analysis, add your Bazaarlink API key to the root `.env` file:
 
 ```env
 BAZAARLINK_API_KEY=your-bazaarlink-api-key
+GEMINI_API_KEY=your-gemini-api-key
+ELEVEN_LABS_API=your-elevenlabs-api-key
 LLM_BASE_URL=https://api.bazaarlink.ai/v1
 MODEL_NAME=qwen/qwen3.7-flash:free
 ```
 
 The app loads `.env` for local development. Keep the key out of source control;
 `.env` is ignored by Git. `.env.example` lists all supported pipeline settings.
+`GEMINI_API_KEY` enables speech-to-text for MP3 uploads and MP4 files without
+embedded subtitles. Bazaarlink remains responsible for analyzing transcripts
+and frame analysis. If Gemini returns HTTP 429, `ELEVEN_LABS_API` enables the
+ElevenLabs transcription fallback. Completed Other analyses are saved to
+History as result summaries only; uploaded files and transcripts are not saved.
 For hosted deployments, configure `BAZAARLINK_API_KEY`, `LLM_BASE_URL`, and
 `MODEL_NAME` as
 environment variables in the hosting dashboard instead of uploading `.env`.

@@ -1,14 +1,12 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { compare as requestCompare } from "../api.js";
 import { isValidYouTubeUrl } from "../lib/youtubeUrl.js";
-import { useHistory } from "./HistoryContext.jsx";
 
 const CompareContext = createContext(null);
 const MAX_COMPARE_VIDEOS = 3;
 const MIN_COMPARE_VIDEOS = 2;
 
 export function CompareProvider({ children }) {
-  const { addEntry } = useHistory();
   const [question, setQuestion] = useState("");
   const [urls, setUrls] = useState(["", ""]);
   const [status, setStatus] = useState("idle");
@@ -64,16 +62,6 @@ export function CompareProvider({ children }) {
         question: trimmedQuestion,
         urls: trimmedUrls,
       });
-      response.ranking.forEach((video) => {
-        if (!video.error && video.verdict !== "Can't verify") {
-          addEntry({
-            question: trimmedQuestion,
-            videoId: video.videoId,
-            url: video.url,
-            result: video,
-          });
-        }
-      });
       setResult(response);
       setStatus("success");
       return response;
@@ -86,7 +74,7 @@ export function CompareProvider({ children }) {
       setStatus("error");
       throw new Error(message);
     }
-  }, [question, urls, addEntry]);
+  }, [question, urls]);
 
   const reset = useCallback(() => {
     setQuestion("");

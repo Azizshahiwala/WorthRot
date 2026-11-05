@@ -6,10 +6,9 @@ from typing import TypedDict
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from backend.services.config import Settings
+from backend.services.config import DEFAULT_LLM_BASE_URL, Settings
 from backend.services.errors import ConfigurationError, LLMError
 
-DEFAULT_LLM_BASE_URL = "https://api.bazaarlink.ai/v1"
 MAX_FACTS = 5
 MAX_MISSING_ITEMS = 3
 MAX_FACT_WORDS = 15
@@ -125,7 +124,11 @@ def parse_model_json(response_text: str) -> dict:
     }
 
 
-def _request_facts(settings: Settings, context: str) -> tuple[str, int, int]:
+def _request_facts(
+    settings: Settings,
+    context: str,
+    timeout_seconds: float | None = None,
+) -> tuple[str, int, int]:
     api_key = os.environ.get("BAZAARLINK_API_KEY", "").strip()
     if not api_key:
         raise ConfigurationError(
@@ -166,7 +169,9 @@ def _request_facts(settings: Settings, context: str) -> tuple[str, int, int]:
         method="POST",
     )
     try:
-        with urlopen(request, timeout=30) as response:
+        with urlopen(
+            request, timeout=timeout_seconds if timeout_seconds is not None else 30
+        ) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
         raise LLMError(_http_error_message(error.code)) from error
@@ -206,8 +211,14 @@ def _request_facts(settings: Settings, context: str) -> tuple[str, int, int]:
     return content, tokens_in, tokens_out
 
 
-def extract_facts(settings: Settings, context: str) -> Extraction:
-    response_text, tokens_in, tokens_out = _request_facts(settings, context)
+def extract_facts(
+    settings: Settings,
+    context: str,
+    timeout_seconds: float | None = None,
+) -> Extraction:
+    response_text, tokens_in, tokens_out = _request_facts(
+        settings, context, timeout_seconds=timeout_seconds
+    )
     parsed = parse_model_json(response_text)
     return {
         "coverage": parsed["coverage"],

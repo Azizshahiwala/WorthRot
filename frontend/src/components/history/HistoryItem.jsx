@@ -10,6 +10,8 @@ const verdictVariants = {
 };
 
 function getVideoLabel(entry) {
+  if (entry.source === "media") return "Other upload";
+  if (entry.source === "transcript") return "Pasted transcript";
   if (!entry.url) return entry.videoId || "Pasted transcript";
   try {
     return new URL(entry.url).hostname.replace(/^www\./, "");

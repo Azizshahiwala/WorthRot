@@ -900,6 +900,69 @@
   gap: var(--space-5);
 }
 
+.media-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.media-heading h1 {
+  margin-bottom: 0;
+}
+
+.media-form-card {
+  padding: var(--space-5);
+}
+
+.media-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.media-file-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.media-file-input {
+  max-width: 100%;
+  padding: var(--space-2);
+  font: inherit;
+}
+
+.media-file-name {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.media-privacy-note {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: var(--border-width) solid var(--color-brand);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.media-form-actions,
+.media-loading,
+.media-source-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.media-loading,
+.media-loading-label {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.media-results {
+  display: grid;
+  gap: var(--space-3);
+}
+
 .compare-heading h1 {
   margin-bottom: 0;
 }
@@ -1023,6 +1086,139 @@
   background: var(--color-surface);
 }
 
+.about-page {
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--content-max-width);
+}
+
+.about-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  align-items: end;
+  gap: var(--space-6);
+  padding-bottom: var(--space-5);
+  border-bottom: var(--border-width) solid var(--color-text);
+}
+
+.about-hero h1 {
+  max-width: var(--hero-title-max-width);
+  margin-bottom: 0;
+}
+
+.about-hero p {
+  max-width: var(--evidence-copy-max-width);
+  margin-bottom: var(--space-1);
+  color: var(--color-brand-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.about-section {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.65fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: var(--border-width) solid var(--color-text);
+}
+
+.about-section h2 {
+  margin: 0;
+}
+
+.about-step-list,
+.about-principle-list,
+.about-limits-list,
+.about-author ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.about-step-list {
+  display: grid;
+}
+
+.about-step-list li {
+  display: grid;
+  grid-template-columns: var(--space-8) minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.about-step-list li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.about-step-number {
+  color: var(--color-brand-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.about-step-copy h3,
+.about-principle-list h3,
+.about-author h3 {
+  margin-bottom: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+}
+
+.about-step-copy p,
+.about-principle-list p,
+.about-author p {
+  max-width: var(--evidence-copy-max-width);
+  margin-bottom: 0;
+}
+
+.about-principle-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--space-5);
+}
+
+.about-principle-list li {
+  padding: var(--space-3) 0;
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.about-limits-list {
+  display: grid;
+  gap: var(--space-3);
+  padding-left: var(--space-4);
+  border-left: var(--border-width) solid var(--color-warning);
+}
+
+.about-limits-list li {
+  max-width: var(--evidence-copy-max-width);
+}
+
+.about-built-with-copy {
+  max-width: var(--evidence-copy-max-width);
+  margin-bottom: 0;
+  font-family: var(--font-mono);
+}
+
+.about-author ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-3);
+}
+
+.about-author a {
+  color: var(--color-brand-text);
+  font-weight: var(--weight-bold);
+  text-underline-offset: var(--space-1);
+}
+
 @media (max-width: 64rem) {
   .nav-inner {
     gap: var(--space-2);
@@ -1086,6 +1282,16 @@
   .hero {
     grid-template-columns: minmax(0, 1fr) 9rem;
     gap: var(--space-4);
+  }
+
+  .about-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .about-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 
   .hero h1 {
@@ -1169,6 +1375,10 @@
   .history-heading {
     align-items: flex-start;
     flex-wrap: wrap;
+  }
+
+  .about-principle-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .history-entry-header {

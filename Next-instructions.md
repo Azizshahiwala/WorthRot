@@ -28,7 +28,7 @@ Build the frontend foundation: a design system, a navbar, a modular context-base
 | YouTube (default) | `/` | **Functional** | `App()` |
 | Compare | `/compare` | Placeholder | `ComparePage` |
 | History | `/history` | Placeholder | `HistoryPage` |
-| About | `/about` | Placeholder | `AboutPage` |
+| About | `/about` | **Functional** | `AboutPage` |
 
 - `App()` is the first and default page: it renders the YouTube analyzer at `/`.
 - The navbar and providers live in a layout wrapper, not inside `App()`.

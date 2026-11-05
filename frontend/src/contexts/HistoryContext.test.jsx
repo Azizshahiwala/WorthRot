@@ -171,6 +171,34 @@ describe("HistoryContext", () => {
     expect(loadHistory()).toEqual([entry, secondEntry]);
   });
 
+  it("deduplicates legacy entries without a source field", () => {
+    localStorage.setItem(
+      HISTORY_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        entries: [
+          {
+            id: "legacy-entry",
+            createdAt: "2026-11-05T00:00:00.000Z",
+            question: "How does this work?",
+            videoId: "video-one",
+            url: "https://youtu.be/video-one",
+            verdict: "Worth it",
+            facts: [],
+            missing: [],
+          },
+        ],
+      }),
+    );
+    renderHistory();
+
+    fireEvent.click(screen.getByText("Add duplicate"));
+
+    expect(entriesFromScreen()).toHaveLength(1);
+    expect(entriesFromScreen()[0].verdict).toBe("Skim");
+    expect(entriesFromScreen()[0].source).toBe("youtube");
+  });
+
   it("removes one item and reports clear results", () => {
     renderHistory();
     fireEvent.click(screen.getByText("Add first"));
@@ -196,7 +224,7 @@ describe("HistoryContext", () => {
     );
   });
 
-  it("does not save Can't verify results", () => {
+  it("saves Can't verify results without metadata", () => {
     renderHistory();
     act(() => {
       lastActionResult = currentHistory.addEntry({
@@ -206,8 +234,9 @@ describe("HistoryContext", () => {
         result: { verdict: "Can't verify", facts: [], missing: [] },
       });
     });
-    expect(lastActionResult).toBe(false);
-    expect(entriesFromScreen()).toEqual([]);
+    expect(lastActionResult).toBe(true);
+    expect(entriesFromScreen()).toHaveLength(1);
+    expect(entriesFromScreen()[0].verdict).toBe("Can't verify");
   });
 
   it("automatically saves successful analyses without metadata", async () => {

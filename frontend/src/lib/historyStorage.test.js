@@ -58,9 +58,10 @@ describe("historyStorage", () => {
 
   it("validates the full entry shape", () => {
     expect(validateEntry(makeEntry("valid"))).toBe(true);
-    expect(validateEntry({ ...makeEntry("bad"), verdict: "Can't verify" })).toBe(
-      false,
-    );
+    expect(
+      validateEntry({ ...makeEntry("unverified"), verdict: "Can't verify" }),
+    ).toBe(true);
+    expect(validateEntry({ ...makeEntry("bad"), source: "unknown" })).toBe(false);
     expect(validateEntry({ ...makeEntry("bad"), createdAt: "not a date" })).toBe(
       false,
     );

@@ -132,3 +132,54 @@ export async function compare({ question, urls }) {
   }
   return result;
 }
+
+const mediaSources = new Set(["subtitles", "speech", "frames"]);
+
+function isMediaAnalysisResponse(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    verdicts.has(value.verdict) &&
+    mediaSources.has(value.source) &&
+    Array.isArray(value.facts) &&
+    value.facts.every(
+      (fact) =>
+        fact !== null &&
+        typeof fact === "object" &&
+        typeof fact.text === "string" &&
+        (typeof fact.timestamp === "string" || fact.timestamp === null) &&
+        fact.url === null,
+    ) &&
+    Array.isArray(value.missing) &&
+    value.missing.every((entry) => typeof entry === "string") &&
+    value.meta !== null &&
+    typeof value.meta === "object" &&
+    Number.isInteger(value.meta.tokens_in) &&
+    Number.isInteger(value.meta.tokens_out) &&
+    Number.isInteger(value.meta.frames_sent)
+  );
+}
+
+export async function analyzeMedia(formData) {
+  const response = await fetch("/analyze-media", {
+    method: "POST",
+    body: formData,
+  });
+  let result;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("The server returned an invalid response.");
+  }
+  if (!response.ok) {
+    const errorPayload =
+      result !== null && typeof result === "object" ? result : {};
+    throw new Error(
+      errorPayload.message || "The media request could not be completed.",
+    );
+  }
+  if (!isMediaAnalysisResponse(result)) {
+    throw new Error("The server returned an invalid media analysis response.");
+  }
+  return result;
+}

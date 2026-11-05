@@ -10,16 +10,20 @@ Vite serves the UI and proxies API requests to Flask.
 - `src/config/tabs.js` is the single list of navigation labels, routes, page
   elements, and availability.
 - `src/main.jsx` composes `BrowserRouter`, `ThemeProvider`, `ToastProvider`,
-  `HistoryProvider`, `AnalysisProvider`, `CompareProvider`, and the layout in
-  that order.
+  `HistoryProvider`, `AnalysisProvider`, `CompareProvider`, `OtherProvider`,
+  and the layout in that order.
 - `src/layout/` contains the shared navigation and route outlet.
-- `src/contexts/` separates analysis, theme, toast, history, and compare state.
+- `src/contexts/` separates analysis, theme, toast, history, compare, and media
+  upload state.
   Each context provides a guarded custom hook and memoized actions/state.
 - `src/components/ui/` contains reusable design-system primitives;
   `src/components/youtube/` contains analyzer form and result components.
+- `/about` is a static page composed from `src/config/about.js`; it uses no
+  context, API calls, or storage.
 - `src/styles/` holds theme tokens, base styles, and component styles.
-- `/compare` ranks two or three YouTube videos for one question. About remains
-  a placeholder. The History page displays locally saved analysis results.
+- `/compare` ranks two or three YouTube videos for one question. `/other`
+  analyzes user-uploaded MP4/MP3 files. Successful single-video and media
+  analyses are saved to History as result summaries; Compare is not.
 - `src/lib/historyStorage.js` validates and persists result summaries in
   browser `localStorage`; analysis still works when storage is unavailable.
 
@@ -40,16 +44,15 @@ coverage and verified-fact count to the verdict; no fact is inferred from a
 video title. A long transcript with no matching windows returns `Rot` without
 an LLM call.
 
-After a successful analysis with a `Worth it`, `Skim`, or `Rot` verdict, the
-frontend saves the question and result summary to `localStorage` on that
-browser. It does not store transcripts, internal quotes, or token metadata.
-Each successful Compare row with one of those verdicts is saved as an
-individual History entry using the same storage and deduplication rules.
-Failed or `Can't verify` rows are not saved.
-History reads, expands, and deletes these local entries without requesting
-`/analyze`; entries are limited to 50 and deduplicated by video and normalized
-question. The server-side SQLite cache remains separate and is not an account
-or ownership system. No cookies are set.
+After a completed `/analyze` or `/analyze-media` request, the frontend saves
+the question and result summary to `localStorage` on that browser. Media
+entries are labelled "Other upload" and retain no uploaded file or transcript.
+History omits transcripts, internal quotes, and token metadata. Compare
+results are not saved. History reads, expands, and deletes these local entries
+without requesting an analysis; entries are limited to 50 and YouTube
+analyses are deduplicated by video and normalized question. The server-side
+SQLite cache remains separate and is not an account or ownership system. No
+cookies are set.
 
 Transcript and question-specific result caches use SQLite under `DATA_DIR`.
 Local runs default to `src/backend/data`; deployments must provide their
@@ -208,23 +211,50 @@ sequenceDiagram
   set only for a leading `Worth it` or `Skim` result. Coverage and verified
   fact counts are private ranker inputs.
 
+- `POST /analyze-media` accepts multipart form data with a `question` and one
+  MP4/MP3 `file`. Content bytes, size, duration, and streams are validated
+  before analysis. Uploaded media is written under
+  `DATA_DIR/tmp/<uuid>/` and deleted after the request.
+
+  ```json
+  {
+    "verdict": "Worth it | Skim | Rot | Can't verify",
+    "source": "subtitles | speech | frames",
+    "facts": [{ "text": "string", "timestamp": "mm:ss or null", "url": null }],
+    "missing": ["string"],
+    "meta": { "tokens_in": 0, "tokens_out": 0, "frames_sent": 0 }
+  }
+  ```
+
+  MP4 processing prefers embedded subtitles, then Gemini speech-to-text when
+  `GEMINI_API_KEY` is configured, then sampled, deduplicated frames. Gemini
+  HTTP 429 responses trigger an ElevenLabs STT request when `ELEVEN_LABS_API`
+  is configured. MP3 uses the same speech transcription path. Transcription
+  requests include segment or word timestamps; missing or out-of-range
+  timestamps are discarded, and untimed speech returns `Can't verify`. Frame
+  facts must cite a sampled timestamp and the verdict is capped at `Skim`. The
+  frame path sends one vision request with no more than `MAX_FRAMES` images.
+
 ## Configuration
 
-See `.env.example` for `BAZAARLINK_API_KEY`, `LLM_BASE_URL`, `MODEL_NAME`,
-token/window limits, `MAX_VIDEO_MINUTES`, `MAX_COMPARE_VIDEOS`,
-`COMPARE_TIMEOUT_SECONDS`, and `DATA_DIR`. For local
+See `.env.example` for provider, token/window, compare, media, upload, frame,
+ffmpeg, Gemini/ElevenLabs STT, and `DATA_DIR` settings. For local
 development, the root `.env` file is loaded automatically and ignored by Git.
 Hosted deployments should configure the key, base URL, and model as
-environment variables. The default model is `qwen/qwen3.7-flash:free` and the
-default base URL is `https://api.bazaarlink.ai/v1`. The output token setting
+environment variables. Media frame analysis reuses the same `MODEL_NAME` and
+`LLM_BASE_URL` as transcript analysis; the standard Bazaarlink URL is used by
+default, so provider setup requires only `BAZAARLINK_API_KEY`. The output token setting
 cannot exceed 300. The OpenAI-compatible Chat Completions API is called with
-the Python standard library.
+the Python standard library. Media transcription sends audio directly to the
+Gemini `generateContent` API using `GEMINI_API_KEY`; only Gemini HTTP 429
+responses trigger a fallback to ElevenLabs' speech-to-text API using
+`ELEVEN_LABS_API`.
 
 ## Browser history
 
 The `HistoryProvider` is nested inside `ToastProvider` and before
-`AnalysisProvider`. Successful single-video analyses call its `addEntry` action
-once; successful Compare rows call the same action once per checked video.
+`AnalysisProvider`. Completed single-video and media analyses call its
+`addEntry` action; Compare results do not write to History.
 `HistoryPage` reads from this context, and expanded entries use the same
 `FactsPanel` as fresh analysis results. The storage module validates every
 loaded entry and catches blocked-storage, malformed-data, and quota errors.
@@ -233,8 +263,14 @@ History is per browser and device; clearing site data removes it.
 ## Current boundaries
 
 - Compare ranks at most three YouTube videos; it does not accept pasted
-  transcripts or save failed/`Can't verify` results to History.
-- Only YouTube videos are supported; no other video platforms are in scope.
-- No media is downloaded and no transcript is persisted outside `DATA_DIR`.
+  transcripts or save results to History.
+- Other analyzes user-provided MP4/MP3 files only; it does not accept external
+  media URLs. Only result summaries, never files or transcripts, are saved to
+  History. One media job runs at a time, and request workdirs are swept when
+  older than one hour.
+- No media is downloaded or persisted after a request. No transcript is
+  persisted outside the existing `DATA_DIR` cache for YouTube analysis.
 - Real caption retrieval may fail in hosted environments due to YouTube IP
   blocking; paste a timestamped transcript as the fallback.
+- Embarko ffmpeg availability, its proxy request timeout, BazaarLink STT
+  support, and the configured vision model's image limits remain unverified.

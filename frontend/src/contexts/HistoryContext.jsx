@@ -16,10 +16,16 @@ import {
 } from "../lib/historyStorage.js";
 
 const HistoryContext = createContext(null);
-const SAVED_VERDICTS = new Set(["Worth it", "Skim", "Rot"]);
+const SAVED_VERDICTS = new Set(["Worth it", "Skim", "Rot", "Can't verify"]);
+const HISTORY_SOURCES = new Set(["youtube", "transcript", "media"]);
 
 function normalizeQuestion(question) {
   return question.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getEntrySource(entry) {
+  if (HISTORY_SOURCES.has(entry.source)) return entry.source;
+  return entry.url ? "youtube" : "transcript";
 }
 
 function makeId() {
@@ -56,23 +62,28 @@ export function HistoryProvider({ children }) {
   );
 
   const addEntry = useCallback(
-    ({ question, videoId, url, result }) => {
+    ({ question, videoId, url, result, source }) => {
       if (!question?.trim() || !SAVED_VERDICTS.has(result?.verdict)) {
         return false;
       }
+      const safeUrl = typeof url === "string" ? url : "";
+      const entrySource = HISTORY_SOURCES.has(source)
+        ? source
+        : getEntrySource({ url: safeUrl });
       const normalizedQuestion = normalizeQuestion(question);
       const entry = {
         id: makeId(),
         createdAt: new Date().toISOString(),
         question: question.trim(),
         videoId: typeof videoId === "string" ? videoId : "",
-        url: typeof url === "string" ? url : "",
+        url: safeUrl,
+        source: entrySource,
         verdict: result.verdict,
         facts: Array.isArray(result.facts)
           ? result.facts.map(({ text, timestamp, url: factUrl }) => ({
               text,
-              timestamp,
-              url: factUrl,
+              timestamp: typeof timestamp === "string" ? timestamp : "",
+              url: typeof factUrl === "string" ? factUrl : "",
             }))
           : [],
         missing: Array.isArray(result.missing) ? [...result.missing] : [],
@@ -80,9 +91,17 @@ export function HistoryProvider({ children }) {
       const nextEntries = [
         entry,
         ...entries.filter(
-          (existing) =>
-            existing.videoId !== entry.videoId ||
-            normalizeQuestion(existing.question) !== normalizedQuestion,
+          (existing) => {
+            const existingSource = getEntrySource(existing);
+            if (entry.source === "media" || existingSource === "media") {
+              return true;
+            }
+            return (
+              existing.videoId !== entry.videoId ||
+              existingSource !== entry.source ||
+              normalizeQuestion(existing.question) !== normalizedQuestion
+            );
+          },
         ),
       ].slice(0, MAX_HISTORY_ENTRIES);
       persist(nextEntries);

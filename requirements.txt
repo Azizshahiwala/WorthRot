@@ -2,3 +2,5 @@ Flask>=3.1,<4
 # Load local .env settings during development without overriding deployed environment variables.
 python-dotenv>=1,<2
 youtube-transcript-api>=1.2,<2
+Pillow>=11,<13
+imageio-ffmpeg>=0.6,<1

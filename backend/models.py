@@ -54,6 +54,26 @@ class AnalysisResponse(TypedDict):
     meta: AnalysisMeta
 
 
+class MediaFact(TypedDict):
+    text: str
+    timestamp: str | None
+    url: None
+
+
+class MediaMeta(TypedDict):
+    tokens_in: int
+    tokens_out: int
+    frames_sent: int
+
+
+class MediaAnalysisResponse(TypedDict):
+    verdict: Literal["Worth it", "Skim", "Rot", "Can't verify"]
+    source: Literal["subtitles", "speech", "frames"]
+    facts: list[MediaFact]
+    missing: list[str]
+    meta: MediaMeta
+
+
 class VideoResult(AnalysisResponse, total=False):
     coverage: Literal["full", "partial", "none"]
     verified_fact_count: int

@@ -5,9 +5,10 @@ Instructions for AI coding agents working in this repo. Read fully before making
 ## Project
 
 WorthRot tells a user whether a video covers their question.
-Input: a question plus a YouTube URL (or a pasted transcript).
+Input: a question plus a YouTube URL (or pasted transcript), or a local MP4/MP3.
 Output: a verdict (`Worth it` / `Skim` / `Rot` / `Can't verify`), concise timestamped facts, and what is missing.
-Compare: rank 2-3 YouTube videos for the same question.
+Compare: rank 2-3 YouTube videos for the same question. Other: analyze a
+user-uploaded MP4 or MP3 without storing it.
 
 Built for the Embarko AI hackathon. Deployed to Embarko (cloud hosting for small apps).
 
@@ -23,7 +24,7 @@ Built for the Embarko AI hackathon. Deployed to Embarko (cloud hosting for small
 
 ```
 app.py              Flask entry; serves frontend/dist
-backend/routes/     HTTP endpoints (analyze, health)
+backend/routes/     HTTP endpoints (analyze, compare, media, health)
 backend/services/   transcript, chunker, verdict, verifier, ranker
 backend/prompts/    LLM prompt files
 backend/models.py   response schema
@@ -63,9 +64,12 @@ Run `pytest -q` and `npm run build` before declaring any task done.
 1. **Evidence required.** A `Worth it` or `Skim` verdict must include at least one concise fact with a timestamp.
 2. **Verify facts.** `verifier.py` must confirm each fact's internal quote appears in its timestamped transcript window. The internal quote is not returned to the client. Drop or downgrade facts that do not verify.
 3. **Never guess.** If there is no transcript or no evidence, return `Rot` or `Can't verify`, never an invented answer.
-4. **No media downloads or non-YouTube sources.** YouTube analysis uses captions or a user-pasted timestamped transcript.
+4. **No media downloads or scraping.** YouTube analysis uses captions or a user-pasted timestamped transcript. The Other tab may process a user's MP4/MP3 upload only.
 5. **Length cap.** Reject or truncate videos over `MAX_VIDEO_MINUTES` (default 45) with a clear message.
-6. **Friendly errors.** Handle: no captions, invalid URL, too long, LLM failure. Return a JSON error with a human-readable `message`.
+6. **Friendly errors.** Handle no captions, invalid URL, too long, LLM failure,
+   unsupported media, oversized/long media, ffmpeg unavailable, and a busy
+   media processor. Return JSON with a human-readable `message`.
+7. **Frame evidence exception.** Media facts from sampled frames are checked against timestamps of frames actually sent, labelled "From frames", and verdicts are capped at `Skim`. Untimed speech cannot produce `Worth it` or `Skim`.
 
 ## API contract
 
@@ -97,6 +101,24 @@ Errors return a JSON `message`; caption and LLM failures may also include a
 `result` with verdict `Can't verify`.
 `GET /health` returns `{"status": "ok"}`.
 
+`POST /analyze-media` accepts `multipart/form-data` with a question and one
+MP4/MP3 file. Its response is:
+
+```json
+{
+  "verdict": "Worth it | Skim | Rot | Can't verify",
+  "source": "subtitles | speech | frames",
+  "facts": [{ "text": "string", "timestamp": "mm:ss or null", "url": null }],
+  "missing": ["string"],
+  "meta": { "tokens_in": 0, "tokens_out": 0, "frames_sent": 0 }
+}
+```
+
+Uploads are validated by content, size, and duration, processed in
+`DATA_DIR/tmp`, and deleted after the request. Successful `/analyze` and
+`/analyze-media` results are saved to browser History as summaries only;
+Compare results are not saved. Never store uploaded media or transcripts.
+
 `POST /compare` accepts 2 to `MAX_COMPARE_VIDEOS` (default 3) distinct YouTube
 URLs and one non-empty question:
 
@@ -108,6 +130,19 @@ It returns the ranked per-video analysis, with `best` set to the top video's ID
 only when its verdict is `Worth it` or `Skim`. Individual video failures return
 `Can't verify` with an `error.message` and do not fail the request. Ranking
 metadata such as coverage and verified-fact counts remain internal.
+
+## Environment variables
+
+Keep `.env.example` current. Media configuration uses `MAX_UPLOAD_MB` (100),
+`MAX_MEDIA_SECONDS` (300), `MEDIA_TIMEOUT_SECONDS` (90),
+`FFMPEG_TIMEOUT_SECONDS` (60), `FRAME_INTERVAL_SECONDS` (5),
+`FRAME_MAX_SIDE` (768), `MAX_FRAMES` (16),
+`DEDUPE_HAMMING_THRESHOLD` (6), `FFMPEG_PATH`,
+`MODEL_NAME`, optional `LLM_BASE_URL`, `GEMINI_API_KEY`, and
+`ELEVEN_LABS_API`. Speech transcription uses Gemini when configured and falls
+back to ElevenLabs on Gemini HTTP 429; analysis still uses the shared model and
+`BAZAARLINK_API_KEY`. Frame analysis defaults to Bazaarlink's standard API
+URL. Never expose any key to the frontend.
 
 ```json
 {

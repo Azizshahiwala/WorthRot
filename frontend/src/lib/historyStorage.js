@@ -1,7 +1,8 @@
 export const HISTORY_STORAGE_KEY = "worthrot:history:v1";
 export const MAX_HISTORY_ENTRIES = 50;
 const HISTORY_VERSION = 1;
-const VERDICTS = new Set(["Worth it", "Skim", "Rot"]);
+const VERDICTS = new Set(["Worth it", "Skim", "Rot", "Can't verify"]);
+const HISTORY_SOURCES = new Set(["youtube", "transcript", "media"]);
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -51,6 +52,7 @@ export function validateEntry(entry) {
     typeof entry.videoId !== "string" ||
     typeof entry.url !== "string" ||
     !isSafeUrl(entry.url) ||
+    (entry.source !== undefined && !HISTORY_SOURCES.has(entry.source)) ||
     !VERDICTS.has(entry.verdict) ||
     !Array.isArray(entry.facts) ||
     !entry.facts.every(
@@ -70,7 +72,7 @@ export function validateEntry(entry) {
 }
 
 function sanitizeEntry(entry) {
-  return {
+  const sanitized = {
     id: entry.id,
     createdAt: entry.createdAt,
     question: entry.question,
@@ -84,6 +86,10 @@ function sanitizeEntry(entry) {
     })),
     missing: [...entry.missing],
   };
+  if (HISTORY_SOURCES.has(entry.source)) {
+    sanitized.source = entry.source;
+  }
+  return sanitized;
 }
 
 export function migrate(envelope) {

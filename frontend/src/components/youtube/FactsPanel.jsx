@@ -33,9 +33,9 @@ export default function FactsPanel({ result }) {
                   {fact.timestamp}
                   <span className="visually-hidden"> (opens video)</span>
                 </a>
-              ) : (
+              ) : fact.timestamp ? (
                 <span className="timestamp">{fact.timestamp}</span>
-              )}
+              ) : null}
             </li>
           ))}
         </ul>

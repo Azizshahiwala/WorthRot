@@ -63,8 +63,8 @@ export default function HistoryPage() {
 
       {!available && (
         <p className="history-storage-notice" role="status">
-          History can’t be saved in this browser. You can still analyze videos
-          during this session.
+          History can’t be saved in this browser. Your analyses remain
+          available for this session.
         </p>
       )}
 
@@ -74,7 +74,8 @@ export default function HistoryPage() {
 
       {entries.length === 0 ? (
         <p className="history-empty">
-          No verdicts filed yet. Start at the <Link to="/">YouTube tab</Link>.
+          No verdicts filed yet. Start with{" "}
+          <Link to="/">YouTube</Link> or <Link to="/other">Other</Link>.
         </p>
       ) : (
         <ul className="history-list" aria-label="Saved analyses">

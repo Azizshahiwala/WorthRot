@@ -212,6 +212,33 @@ include the single line “None of these videos cover your question.”
 - **Don't:** Render summaries or unsupported conclusions.
 - **Example:** `<CompareResultList ranking={result.ranking} />`
 
+#### MediaForm
+
+- **Description:** Question and local MP4/MP3 upload form for the Other tab.
+- **Variants:** Shared labelled `Input`, native labelled file input, and shared
+  `Button`; displays the selected filename, size limit, and privacy notice.
+- **Props:** None; reads and updates `useOther()`.
+- **States:** Idle, loading, client validation error, and request error.
+- **Accessibility:** File input has a visible label and format hint; loading is
+  announced with `role="status"`, errors with `role="alert"`, and controls
+  remain keyboard operable.
+- **Do:** Check type and size before upload and leave multipart headers to the
+  browser.
+- **Don't:** Persist uploaded files or transcripts. Other History entries may
+  contain result summaries only.
+- **Example:** `<MediaForm />`
+
+#### Other result
+
+- **Description:** Reuses `FactsPanel` for media-analysis facts and missing
+  topics.
+- **Variants:** Frame-sourced results include a text badge labelled
+  “From frames”; null timestamps render without links or timestamp text.
+- **Accessibility:** Verdict and frame-source labels are text, and updates use
+  a polite live region.
+- **Do:** Preserve null timestamps for untimed evidence.
+- **Don't:** Imply that frame-derived facts came from transcript quotes.
+
 ## Contrast verification
 
 Ratios below use the WCAG relative-luminance calculation on the foreground and

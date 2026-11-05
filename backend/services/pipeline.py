@@ -27,10 +27,21 @@ def _failure_result(video_id: str, error: AnalysisError) -> VideoResult:
 
 
 def analyze_video(
-    question: str, url: str, transcript_text: str = ""
+    question: str,
+    url: str,
+    transcript_text: str = "",
+    timeout_seconds: float | None = None,
 ) -> VideoResult:
     try:
-        result = run_analysis(question, url, transcript_text)
+        if timeout_seconds is None:
+            result = run_analysis(question, url, transcript_text)
+        else:
+            result = run_analysis(
+                question,
+                url,
+                transcript_text,
+                timeout_seconds=timeout_seconds,
+            )
     except AnalysisError as error:
         video_id = (
             error.result.get("meta", {}).get("video_id", "")

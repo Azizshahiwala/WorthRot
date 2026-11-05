@@ -96,7 +96,12 @@ def _get_transcript(
     return transcript
 
 
-def analyze_video(question: str, url: str, transcript_text: str) -> VideoResult:
+def analyze_video(
+    question: str,
+    url: str,
+    transcript_text: str,
+    timeout_seconds: float | None = None,
+) -> VideoResult:
     question = question.strip()
     if not question:
         raise InvalidInputError("Add a question to continue.")
@@ -158,7 +163,12 @@ def analyze_video(question: str, url: str, transcript_text: str) -> VideoResult:
         raise AnalysisError("The analysis context exceeds its configured token limit.")
 
     try:
-        extraction = extract_facts(settings, context)
+        if timeout_seconds is None:
+            extraction = extract_facts(settings, context)
+        else:
+            extraction = extract_facts(
+                settings, context, timeout_seconds=timeout_seconds
+            )
     except AnalysisError as error:
         error.result = _attach_timestamp_urls(
             _cannot_verify(video_id, "analysis could not be verified"),
