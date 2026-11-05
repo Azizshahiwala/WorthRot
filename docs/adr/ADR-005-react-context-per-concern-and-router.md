@@ -16,14 +16,14 @@ continue to load when refreshed on the Flask-hosted frontend.
 
 ## Decision
 
-Use one React context per concern (`AnalysisContext`, `ThemeContext`, and
-`ToastContext`), each with a provider and guarded custom hook. Use
+Use one React context per concern (`AnalysisContext`, `ThemeContext`,
+`ToastContext`, and `HistoryContext`), each with a provider and guarded custom hook. Use
 `react-router-dom` v6 with `BrowserRouter`, a shared layout route, and a
 configuration-driven tab list. Flask serves the built `index.html` for
 non-API paths so browser refreshes resolve client-side routes.
 
 Providers are nested in this order: `BrowserRouter`, `ThemeProvider`,
-`ToastProvider`, `AnalysisProvider`, and the layout.
+`ToastProvider`, `HistoryProvider`, `AnalysisProvider`, and the layout.
 
 ## Options
 

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "vitest run"
   },
   "dependencies": {
     "react": "^19.1.1",
@@ -13,7 +14,10 @@
     "react-router-dom": "^6.30.6"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@vitejs/plugin-react": "^5.0.4",
-    "vite": "^7.1.7"
+    "jsdom": "^29.1.1",
+    "vite": "^7.1.7",
+    "vitest": "^5.1.0"
   }
 }

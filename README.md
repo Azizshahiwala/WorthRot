@@ -40,6 +40,10 @@ it distinguishes rejected keys, model access or name problems, usage limits,
 and temporary provider outages. Confirm the key and model are configured in the
 same environment that runs Flask.
 
+Successful verdicts are also kept in this browser's History tab using
+`localStorage` (up to 50 entries). History is not synced or sent to the server.
+If browser storage is blocked, analysis still works for the current session.
+
 Install frontend dependencies:
 
 ```powershell
@@ -72,6 +76,13 @@ Flask binds to `0.0.0.0` and reads its port from `PORT` (default `5000`).
 
 ```powershell
 python -m pytest -q
+```
+
+Frontend unit tests:
+
+```powershell
+cd frontend
+npm test
 ```
 
 The optional live Bazaarlink test sends a short sample transcript and prints

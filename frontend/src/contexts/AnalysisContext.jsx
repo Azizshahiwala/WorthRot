@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { analyzeVideo } from "../api.js";
+import { useHistory } from "./HistoryContext.jsx";
 
 const AnalysisContext = createContext(null);
 
 export function AnalysisProvider({ children }) {
+  const { addEntry } = useHistory();
   const [question, setQuestion] = useState("");
   const [url, setUrl] = useState("");
   const [transcript, setTranscript] = useState("");
@@ -31,6 +33,12 @@ export function AnalysisProvider({ children }) {
 
     try {
       const response = await analyzeVideo({ question, url, transcript });
+      addEntry({
+        question,
+        url: url.trim(),
+        videoId: response.meta.video_id,
+        result: response,
+      });
       setResult({
         verdict: response.verdict,
         facts: response.facts,
@@ -59,7 +67,7 @@ export function AnalysisProvider({ children }) {
       setStatus("error");
       throw new Error(message);
     }
-  }, [question, url, transcript]);
+  }, [question, url, transcript, addEntry]);
 
   const reset = useCallback(() => {
     setQuestion("");

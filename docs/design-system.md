@@ -147,6 +147,16 @@ blocks, summaries, or explanatory paragraphs in the success result. In
 development only, a muted metadata line shows input/output token usage and a
 cache tag for cached results.
 
+### History ledger
+
+The History page uses a semantic `<ul>` of compact verdict rows, ordered
+newest-first. Each row pairs the original question with its date, source host
+or video ID, and a text verdict badge. A keyboard-operable expand button
+reveals the shared `FactsPanel`; deleting and two-step clear actions remain
+separate buttons. The empty state points back to YouTube, while a brief inline
+notice explains when browser storage is unavailable. History is local to this
+browser and never sent to the server.
+
 ## Contrast verification
 
 Ratios below use the WCAG relative-luminance calculation on the foreground and

@@ -23,7 +23,7 @@ export const tabs = [
     label: "History",
     path: "/history",
     element: React.createElement(HistoryPage),
-    enabled: false,
+    enabled: true,
   },
   {
     label: "About",

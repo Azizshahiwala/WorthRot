@@ -1,4 +1,4 @@
-# ADR-007: OpenAI-compatible provider and local environment configuration
+# ADR-008: OpenAI-compatible provider and local environment configuration
 
 ## Status
 

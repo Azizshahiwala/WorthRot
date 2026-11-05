@@ -10,15 +10,17 @@ Vite serves the UI and proxies API requests to Flask.
 - `src/config/tabs.js` is the single list of navigation labels, routes, page
   elements, and availability.
 - `src/main.jsx` composes `BrowserRouter`, `ThemeProvider`, `ToastProvider`,
-  `AnalysisProvider`, and the layout in that order.
+  `HistoryProvider`, `AnalysisProvider`, and the layout in that order.
 - `src/layout/` contains the shared navigation and route outlet.
-- `src/contexts/` separates analysis, theme, and toast state. Each context
+- `src/contexts/` separates analysis, theme, toast, and history state. Each context
   provides a guarded custom hook and memoized actions/state.
 - `src/components/ui/` contains reusable design-system primitives;
   `src/components/youtube/` contains analyzer form and result components.
 - `src/styles/` holds theme tokens, base styles, and component styles.
-- `/compare`, `/instagram`, `/history`, and `/about` are navigation-ready
-  placeholders. The YouTube analyzer is the only functional page.
+- `/compare`, `/instagram`, and `/about` are placeholders. The History page
+  displays locally saved analysis results.
+- `src/lib/historyStorage.js` validates and persists result summaries in
+  browser `localStorage`; analysis still works when storage is unavailable.
 
 ## YouTube analysis pipeline
 
@@ -36,6 +38,14 @@ whitespace normalization. Only verified facts reach the response. Code maps
 coverage and verified-fact count to the verdict; no fact is inferred from a
 video title. A long transcript with no matching windows returns `Rot` without
 an LLM call.
+
+After a successful analysis with a `Worth it`, `Skim`, or `Rot` verdict, the
+frontend saves the question and result summary to `localStorage` on that
+browser. It does not store transcripts, internal quotes, or token metadata.
+History reads, expands, and deletes these local entries without requesting
+`/analyze`; entries are limited to 50 and deduplicated by video and normalized
+question. The server-side SQLite cache remains separate and is not an account
+or ownership system. No cookies are set.
 
 Transcript and question-specific result caches use SQLite under `DATA_DIR`.
 Local runs default to `src/backend/data`; deployments must provide their
@@ -120,6 +130,15 @@ environment variables. The default model is `qwen/qwen3.7-flash:free` and the
 default base URL is `https://api.bazaarlink.ai/v1`. The output token setting
 cannot exceed 300. The OpenAI-compatible Chat Completions API is called with
 the Python standard library.
+
+## Browser history
+
+The `HistoryProvider` is nested inside `ToastProvider` and before
+`AnalysisProvider`. Successful analyses call its `addEntry` action once in the
+analysis success path. `HistoryPage` reads from this context, and expanded
+entries use the same `FactsPanel` as fresh analysis results. The storage module
+validates every loaded entry and catches blocked-storage, malformed-data, and
+quota errors. History is per browser and device; clearing site data removes it.
 
 ## Current boundaries
 

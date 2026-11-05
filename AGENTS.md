@@ -16,7 +16,8 @@ Built for the Embarko AI hackathon. Deployed to Embarko (cloud hosting for small
 - Backend: Python, Flask
 - Frontend: React + Vite (built output served by Flask)
 - LLM: Bazaarlink OpenAI-compatible API (key via environment variable only)
-- Storage: none required; optional SQLite cache in `DATA_DIR`
+- Storage: optional SQLite cache in `DATA_DIR`; optional browser `localStorage`
+  for per-device analysis history
 
 ## Repo layout
 
