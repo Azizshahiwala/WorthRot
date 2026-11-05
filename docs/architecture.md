@@ -18,9 +18,8 @@ Vite serves the UI and proxies API requests to Flask.
 - `src/components/ui/` contains reusable design-system primitives;
   `src/components/youtube/` contains analyzer form and result components.
 - `src/styles/` holds theme tokens, base styles, and component styles.
-- `/compare` ranks two or three YouTube videos for one question. Instagram and
-  About remain placeholders. The History page displays locally saved analysis
-  results.
+- `/compare` ranks two or three YouTube videos for one question. About remains
+  a placeholder. The History page displays locally saved analysis results.
 - `src/lib/historyStorage.js` validates and persists result summaries in
   browser `localStorage`; analysis still works when storage is unavailable.
 
@@ -44,6 +43,9 @@ an LLM call.
 After a successful analysis with a `Worth it`, `Skim`, or `Rot` verdict, the
 frontend saves the question and result summary to `localStorage` on that
 browser. It does not store transcripts, internal quotes, or token metadata.
+Each successful Compare row with one of those verdicts is saved as an
+individual History entry using the same storage and deduplication rules.
+Failed or `Can't verify` rows are not saved.
 History reads, expands, and deletes these local entries without requesting
 `/analyze`; entries are limited to 50 and deduplicated by video and normalized
 question. The server-side SQLite cache remains separate and is not an account
@@ -221,17 +223,18 @@ the Python standard library.
 ## Browser history
 
 The `HistoryProvider` is nested inside `ToastProvider` and before
-`AnalysisProvider`. Successful analyses call its `addEntry` action once in the
-analysis success path. `HistoryPage` reads from this context, and expanded
-entries use the same `FactsPanel` as fresh analysis results. The storage module
-validates every loaded entry and catches blocked-storage, malformed-data, and
-quota errors. History is per browser and device; clearing site data removes it.
+`AnalysisProvider`. Successful single-video analyses call its `addEntry` action
+once; successful Compare rows call the same action once per checked video.
+`HistoryPage` reads from this context, and expanded entries use the same
+`FactsPanel` as fresh analysis results. The storage module validates every
+loaded entry and catches blocked-storage, malformed-data, and quota errors.
+History is per browser and device; clearing site data removes it.
 
 ## Current boundaries
 
 - Compare ranks at most three YouTube videos; it does not accept pasted
-  transcripts or save results to History.
-- Instagram remains paste-transcript-only and is not part of this pipeline.
+  transcripts or save failed/`Can't verify` results to History.
+- Only YouTube videos are supported; no other video platforms are in scope.
 - No media is downloaded and no transcript is persisted outside `DATA_DIR`.
 - Real caption retrieval may fail in hosted environments due to YouTube IP
   blocking; paste a timestamped transcript as the fallback.

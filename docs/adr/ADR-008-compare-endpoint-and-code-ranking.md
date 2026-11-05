@@ -31,7 +31,9 @@ internal.
 
 The frontend owns Compare state in a separate `CompareContext`, calls the
 endpoint through `api.js`, and displays an accessible ranking table followed
-by the shared per-video facts panel.
+by the shared per-video facts panel. Each successfully checked result with a
+`Worth it`, `Skim`, or `Rot` verdict is saved as its own History entry through
+the existing History context; failed and `Can't verify` rows are not saved.
 
 ## Options
 
@@ -64,7 +66,8 @@ by the shared per-video facts panel.
 - Compare validation failures reject the full request; a failure for one video
   does not prevent other results from being returned.
 - Cached video/question results require no additional LLM call.
-- The Compare tab is enabled and does not write to browser History.
+- The Compare tab is enabled and saves successfully checked results to browser
+  History using the existing entry validation, deduplication, and size cap.
 - `AGENTS.md`, the architecture contract, design-system docs, and tests must
   stay aligned with the response schema.
 

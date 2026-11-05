@@ -63,7 +63,7 @@ Run `pytest -q` and `npm run build` before declaring any task done.
 1. **Evidence required.** A `Worth it` or `Skim` verdict must include at least one concise fact with a timestamp.
 2. **Verify facts.** `verifier.py` must confirm each fact's internal quote appears in its timestamped transcript window. The internal quote is not returned to the client. Drop or downgrade facts that do not verify.
 3. **Never guess.** If there is no transcript or no evidence, return `Rot` or `Can't verify`, never an invented answer.
-4. **No scraping.** Do not scrape Instagram or download media. Instagram support is paste-transcript only.
+4. **No media downloads or non-YouTube sources.** YouTube analysis uses captions or a user-pasted timestamped transcript.
 5. **Length cap.** Reject or truncate videos over `MAX_VIDEO_MINUTES` (default 45) with a clear message.
 6. **Friendly errors.** Handle: no captions, invalid URL, too long, LLM failure. Return a JSON error with a human-readable `message`.
 

@@ -17,7 +17,7 @@ Build the frontend foundation: a design system, a navbar, a modular context-base
 6. Flask catch-all so client-side routes work on Embarko
 
 **Out of scope (do not build yet)**
-- Instagram, comparison/ranking, history, or auth logic
+- comparison/ranking, history, or auth logic
 - Any new backend endpoint beyond the existing `/analyze` and `/health`
 - Animations beyond simple hover/focus transitions
 
@@ -27,7 +27,6 @@ Build the frontend foundation: a design system, a navbar, a modular context-base
 |---|---|---|---|
 | YouTube (default) | `/` | **Functional** | `App()` |
 | Compare | `/compare` | Placeholder | `ComparePage` |
-| Instagram | `/instagram` | Placeholder | `InstagramPage` |
 | History | `/history` | Placeholder | `HistoryPage` |
 | About | `/about` | Placeholder | `AboutPage` |
 
@@ -86,7 +85,6 @@ frontend/src/
 │   └── NavBar.jsx
 ├── pages/
 │   ├── ComparePage.jsx
-│   ├── InstagramPage.jsx
 │   ├── HistoryPage.jsx
 │   └── AboutPage.jsx
 ├── components/

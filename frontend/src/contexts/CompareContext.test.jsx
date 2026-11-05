@@ -1,9 +1,17 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CompareProvider, useCompare } from "./CompareContext.jsx";
+import { HistoryProvider, useHistory } from "./HistoryContext.jsx";
+import { ToastProvider } from "./ToastContext.jsx";
+import { HISTORY_STORAGE_KEY } from "../lib/historyStorage.js";
+
+vi.mock("../api.js", () => ({
+  compare: vi.fn(),
+}));
+import { compare as requestCompare } from "../api.js";
 
 function CompareHarness() {
-  const { urls, setUrl, addUrl, removeUrl } = useCompare();
+  const { urls, setUrl, addUrl, removeUrl, setQuestion, compare } = useCompare();
   return (
     <div>
       <output data-testid="urls">{JSON.stringify(urls)}</output>
@@ -12,19 +20,41 @@ function CompareHarness() {
       <button onClick={() => setUrl(0, "https://youtu.be/abcdefghijk")}>
         Set first
       </button>
+      <button onClick={() => setUrl(1, "https://youtu.be/lmnopqrstuv")}>
+        Set second
+      </button>
+      <button onClick={() => setQuestion("How does this work?")}>
+        Set question
+      </button>
+      <button onClick={() => void compare().catch(() => {})}>Compare</button>
     </div>
   );
 }
 
 function renderCompare() {
   return render(
-    <CompareProvider>
-      <CompareHarness />
-    </CompareProvider>,
+    <ToastProvider>
+      <HistoryProvider>
+        <CompareProvider>
+          <CompareHarness />
+          <HistoryHarness />
+        </CompareProvider>
+      </HistoryProvider>
+    </ToastProvider>,
   );
 }
 
+function HistoryHarness() {
+  const { entries } = useHistory();
+  return <output data-testid="history">{JSON.stringify(entries)}</output>;
+}
+
 describe("CompareContext", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+
   afterEach(cleanup);
 
   it("throws if used outside its provider", () => {
@@ -60,5 +90,55 @@ describe("CompareContext", () => {
     expect(JSON.parse(screen.getByTestId("urls").textContent)[0]).toBe(
       "https://youtu.be/abcdefghijk",
     );
+  });
+
+  it("saves successfully checked videos to local History, not failed videos", async () => {
+    requestCompare.mockResolvedValue({
+      question: "How does this work?",
+      best: "abcdefghijk",
+      ranking: [
+        {
+          rank: 1,
+          videoId: "abcdefghijk",
+          url: "https://youtu.be/abcdefghijk",
+          verdict: "Worth it",
+          facts: [{ text: "Verified", timestamp: "00:12", url: "https://youtu.be/abcdefghijk?t=12" }],
+          missing: [],
+          error: null,
+          meta: { cached: false, tokens_in: 20, tokens_out: 5 },
+        },
+        {
+          rank: 2,
+          videoId: "lmnopqrstuv",
+          url: "https://youtu.be/lmnopqrstuv",
+          verdict: "Can't verify",
+          facts: [],
+          missing: [],
+          error: { message: "Could not check" },
+          meta: { cached: false, tokens_in: 0, tokens_out: 0 },
+        },
+      ],
+      meta: { tokens_in_total: 20, tokens_out_total: 5 },
+    });
+
+    renderCompare();
+    fireEvent.click(screen.getByText("Set first"));
+    fireEvent.click(screen.getByText("Set second"));
+    fireEvent.click(screen.getByText("Set question"));
+    fireEvent.click(screen.getByText("Compare"));
+
+    const savedEntries = await screen.findByTestId("history");
+    const entries = JSON.parse(savedEntries.textContent);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      question: "How does this work?",
+      videoId: "abcdefghijk",
+      verdict: "Worth it",
+    });
+    expect(entries[0]).not.toHaveProperty("meta");
+    expect(entries[0].facts[0]).not.toHaveProperty("quote");
+    expect(
+      JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY)).entries,
+    ).toHaveLength(1);
   });
 });

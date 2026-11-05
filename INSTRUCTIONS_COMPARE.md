@@ -20,9 +20,8 @@ The single-video pipeline (`INSTRUCTIONS_FACTS_PIPELINE.md`) must work first. Co
 5. Enabling the Compare tab in the navbar config
 
 **Out of scope**
-- Instagram or any non-YouTube source
+- Any non-YouTube source
 - Paste-transcript input in Compare (a blocked video becomes `Can't verify`)
-- Saving Compare results to History
 - More than 3 videos, accounts, sharing, export
 
 ## Backend
@@ -147,6 +146,8 @@ Backend (pytest, mock the LLM and YouTube, no live network):
 - `/compare` validation: missing question, fewer than 2 URLs, more than the cap, invalid URL, duplicate video.
 - Partial failure: one video raises or times out, the others still return and the failed one is `Can't verify`.
 - Cache: a repeated compare makes no LLM call for cached videos.
+- History: save each successfully checked result through the existing History
+  context; do not save failed or `Can't verify` rows.
 - `/analyze` contract unchanged after the refactor.
 
 Frontend (Vitest): `useCompare` guard error outside provider, URL add/remove bounds (min 2, max 3), and any URL validation helper.
