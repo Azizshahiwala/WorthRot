@@ -11,7 +11,7 @@ export const tabs = [
     label: "Compare",
     path: "/compare",
     element: React.createElement(ComparePage),
-    enabled: false,
+    enabled: true,
   },
   {
     label: "Instagram",

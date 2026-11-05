@@ -1,9 +1,17 @@
 from flask import Blueprint, Response, jsonify, request
 
-from backend.services.analyzer import analyze_video
-from backend.services.errors import AnalysisError
+from backend.services.pipeline import analyze_video
 
 analyze_bp = Blueprint("analyze", __name__)
+
+
+def _public_result(result: dict) -> dict:
+    return {
+        "verdict": result["verdict"],
+        "facts": result["facts"],
+        "missing": result["missing"],
+        "meta": result["meta"],
+    }
 
 
 @analyze_bp.post("/analyze")
@@ -28,11 +36,10 @@ def analyze() -> Response | tuple[Response, int]:
         return jsonify(message="The pasted transcript must be text."), 400
 
     url = urls[0].strip() if urls else ""
-    try:
-        result = analyze_video(question, url, transcript)
-    except AnalysisError as error:
-        response = {"message": error.message}
-        if error.result is not None:
-            response["result"] = error.result
-        return jsonify(response), error.status_code
-    return jsonify(result)
+    result = analyze_video(question, url, transcript)
+    if result.get("error"):
+        response = {"message": result["error"]}
+        if result.get("failure_result") is not None:
+            response["result"] = _public_result(result["failure_result"])
+        return jsonify(response), result.get("error_status", 422)
+    return jsonify(_public_result(result))

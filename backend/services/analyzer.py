@@ -1,7 +1,7 @@
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from backend.cache import AnalysisCache, question_hash
-from backend.models import AnalysisResponse, TranscriptDocument
+from backend.models import VideoResult, TranscriptDocument
 from backend.services.chunker import make_windows
 from backend.services.config import Settings
 from backend.services.errors import (
@@ -28,7 +28,8 @@ def _response(
     tokens_in: int = 0,
     tokens_out: int = 0,
     cached: bool = False,
-) -> AnalysisResponse:
+    coverage: str = "none",
+) -> VideoResult:
     return {
         "verdict": verdict,
         "facts": [
@@ -42,12 +43,14 @@ def _response(
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
         },
+        "coverage": coverage,
+        "verified_fact_count": len(facts or []),
     }
 
 
 def _attach_timestamp_urls(
-    result: AnalysisResponse, video_url: str
-) -> AnalysisResponse:
+    result: VideoResult, video_url: str
+) -> VideoResult:
     for fact in result["facts"]:
         if not video_url:
             continue
@@ -69,7 +72,7 @@ def _check_video_length(transcript: TranscriptDocument, settings: Settings) -> N
         raise VideoTooLongError(settings.max_video_minutes)
 
 
-def _cannot_verify(video_id: str, reason: str) -> AnalysisResponse:
+def _cannot_verify(video_id: str, reason: str) -> VideoResult:
     return _response("Can't verify", video_id, missing=[reason])
 
 
@@ -93,7 +96,7 @@ def _get_transcript(
     return transcript
 
 
-def analyze_video(question: str, url: str, transcript_text: str) -> AnalysisResponse:
+def analyze_video(question: str, url: str, transcript_text: str) -> VideoResult:
     question = question.strip()
     if not question:
         raise InvalidInputError("Add a question to continue.")
@@ -144,6 +147,7 @@ def analyze_video(question: str, url: str, transcript_text: str) -> AnalysisResp
             "Rot",
             video_id,
             missing=["no matching content found"],
+            coverage="none",
         )
         if cache and not transcript_text.strip():
             cache.set_result(video_id, normalized_hash, result)
@@ -173,6 +177,7 @@ def analyze_video(question: str, url: str, transcript_text: str) -> AnalysisResp
         missing=missing,
         tokens_in=extraction["tokens_in"],
         tokens_out=extraction["tokens_out"],
+        coverage=extraction["coverage"],
     )
     if cache and not transcript_text.strip():
         cache.set_result(video_id, normalized_hash, result)

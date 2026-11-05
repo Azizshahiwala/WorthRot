@@ -32,6 +32,8 @@ class Settings:
     top_k_windows: int
     short_transcript_tokens: int
     max_video_minutes: int
+    max_compare_videos: int = 3
+    compare_timeout_seconds: int = 45
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -51,4 +53,6 @@ class Settings:
             top_k_windows=_read_int("TOP_K_WINDOWS", 6, 1),
             short_transcript_tokens=_read_int("SHORT_TRANSCRIPT_TOKENS", 1500, 1),
             max_video_minutes=_read_int("MAX_VIDEO_MINUTES", 45, 1),
+            max_compare_videos=_read_int("MAX_COMPARE_VIDEOS", 3, 2, 3),
+            compare_timeout_seconds=_read_int("COMPARE_TIMEOUT_SECONDS", 45, 1),
         )

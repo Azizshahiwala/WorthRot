@@ -7,7 +7,7 @@ Instructions for AI coding agents working in this repo. Read fully before making
 WorthRot tells a user whether a video covers their question.
 Input: a question plus a YouTube URL (or a pasted transcript).
 Output: a verdict (`Worth it` / `Skim` / `Rot` / `Can't verify`), concise timestamped facts, and what is missing.
-Stretch: rank 1-3 videos for the same question.
+Compare: rank 2-3 YouTube videos for the same question.
 
 Built for the Embarko AI hackathon. Deployed to Embarko (cloud hosting for small apps).
 
@@ -96,6 +96,38 @@ transcripts without a YouTube URL, the fact's `url` is an empty string.
 Errors return a JSON `message`; caption and LLM failures may also include a
 `result` with verdict `Can't verify`.
 `GET /health` returns `{"status": "ok"}`.
+
+`POST /compare` accepts 2 to `MAX_COMPARE_VIDEOS` (default 3) distinct YouTube
+URLs and one non-empty question:
+
+```json
+{ "question": "string", "urls": ["string", "string"] }
+```
+
+It returns the ranked per-video analysis, with `best` set to the top video's ID
+only when its verdict is `Worth it` or `Skim`. Individual video failures return
+`Can't verify` with an `error.message` and do not fail the request. Ranking
+metadata such as coverage and verified-fact counts remain internal.
+
+```json
+{
+  "question": "string",
+  "best": "video_id or null",
+  "ranking": [
+    {
+      "rank": 1,
+      "videoId": "string",
+      "url": "string",
+      "verdict": "Worth it | Skim | Rot | Can't verify",
+      "facts": [{ "text": "string", "timestamp": "mm:ss", "url": "string" }],
+      "missing": ["string"],
+      "error": null,
+      "meta": { "cached": false, "tokens_in": 0, "tokens_out": 0 }
+    }
+  ],
+  "meta": { "tokens_in_total": 0, "tokens_out_total": 0 }
+}
+```
 
 Do not change this schema without updating `models.py`, the frontend, tests, and `docs/architecture.md` together.
 

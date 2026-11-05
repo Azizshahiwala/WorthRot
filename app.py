@@ -7,6 +7,7 @@ from flask import Flask, Response, jsonify, send_from_directory
 load_dotenv()
 
 from backend.routes.analyze import analyze_bp
+from backend.routes.compare import compare_bp
 from backend.routes.health import health_bp
 
 ROOT_DIR = Path(__file__).resolve().parent
@@ -17,6 +18,7 @@ def create_app(frontend_dist: Path = FRONTEND_DIST) -> Flask:
     app = Flask(__name__)
     app.register_blueprint(health_bp)
     app.register_blueprint(analyze_bp)
+    app.register_blueprint(compare_bp)
 
     @app.get("/")
     def index() -> Response | tuple[Response, int]:

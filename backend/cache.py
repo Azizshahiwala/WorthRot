@@ -43,6 +43,7 @@ class AnalysisCache:
     def _connect(self) -> Iterator[sqlite3.Connection]:
         connection = sqlite3.connect(self.database_path, timeout=5)
         try:
+            connection.execute("PRAGMA busy_timeout = 5000")
             yield connection
         finally:
             connection.close()

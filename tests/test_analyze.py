@@ -68,6 +68,7 @@ def test_analyze_returns_verified_facts_and_deep_links(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     result = response.get_json()
+    assert set(result) == {"verdict", "facts", "missing", "meta"}
     assert result["verdict"] == "Worth it"
     assert len(result["facts"]) == 2
     assert set(result["facts"][0]) == {"text", "timestamp", "url"}
@@ -197,6 +198,12 @@ def test_missing_captions_returns_paste_transcript_guidance(monkeypatch, tmp_pat
     assert response.status_code == 422
     assert "Paste a transcript" in response.get_json()["message"]
     assert response.get_json()["result"]["verdict"] == "Can't verify"
+    assert set(response.get_json()["result"]) == {
+        "verdict",
+        "facts",
+        "missing",
+        "meta",
+    }
 
 
 def test_video_over_limit_is_rejected(monkeypatch, tmp_path):

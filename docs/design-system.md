@@ -157,6 +157,61 @@ separate buttons. The empty state points back to YouTube, while a brief inline
 notice explains when browser storage is unavailable. History is local to this
 browser and never sent to the server.
 
+### Compare form
+
+`CompareForm` pairs a visible question label with two or three individually
+labelled YouTube URL inputs. Accessible add/remove controls enforce the bounds;
+all fields disable while the request is loading. The submit action exposes a
+status label, and validation/request errors use alert semantics.
+
+### Ranking table
+
+`RankTable` uses a semantic `<table>` with a caption, column headers, row
+headers, text verdict badges, verified-fact counts, and keyboard-reachable
+timestamp links. The table scrolls within its own container on narrow screens.
+The rank is deterministic: verdict tier, coverage, verified fact count, then
+input order. The table is followed by per-video result sections that reuse the
+YouTube `FactsPanel`; failed videos show a short error and the text label
+“Could not check.” When no video is worth watching or skimming, the results
+include the single line “None of these videos cover your question.”
+
+### Compare components
+
+#### CompareForm
+
+- **Description:** Question and two-to-three URL entry for the Compare tab.
+- **Variants:** Uses the shared `Input` and `Button` primitives.
+- **Props:** None; reads and updates `useCompare()`.
+- **States:** Idle, loading, and validation/request error.
+- **Accessibility:** Every field has a visible label; add/remove actions have
+  accessible names; loading is announced and errors use `role="alert"`.
+- **Do:** Keep URL count within the two-to-three supported range.
+- **Don't:** Add transcript input or explanatory paragraphs to results.
+- **Example:** `<CompareForm />`
+
+#### RankTable
+
+- **Description:** Accessible, ranked summary of each compared video.
+- **Variants:** One semantic table, horizontally scrollable on narrow screens.
+- **Props:** `ranking`, the ordered array returned by `/compare`.
+- **States:** Populated result rows.
+- **Accessibility:** Includes a caption, scoped headers, text verdicts, and
+  keyboard-reachable video/timestamp links.
+- **Do:** Keep the verdict text visible and link the first fact timestamp.
+- **Don't:** Rely on color alone or use fact count as the only ranking signal.
+- **Example:** `<RankTable ranking={result.ranking} />`
+
+#### CompareResultList
+
+- **Description:** Per-video facts in the server-provided rank order.
+- **Variants:** Reuses the YouTube `FactsPanel`; failed rows show a brief error.
+- **Props:** `ranking`, the ordered array returned by `/compare`.
+- **States:** Facts, missing items, or one short failure line per video.
+- **Accessibility:** Each result section has a heading tied to its video.
+- **Do:** Keep failed videos labelled “Could not check.”
+- **Don't:** Render summaries or unsupported conclusions.
+- **Example:** `<CompareResultList ranking={result.ranking} />`
+
 ## Contrast verification
 
 Ratios below use the WCAG relative-luminance calculation on the foreground and

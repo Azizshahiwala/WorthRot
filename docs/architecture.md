@@ -10,15 +10,17 @@ Vite serves the UI and proxies API requests to Flask.
 - `src/config/tabs.js` is the single list of navigation labels, routes, page
   elements, and availability.
 - `src/main.jsx` composes `BrowserRouter`, `ThemeProvider`, `ToastProvider`,
-  `HistoryProvider`, `AnalysisProvider`, and the layout in that order.
+  `HistoryProvider`, `AnalysisProvider`, `CompareProvider`, and the layout in
+  that order.
 - `src/layout/` contains the shared navigation and route outlet.
-- `src/contexts/` separates analysis, theme, toast, and history state. Each context
-  provides a guarded custom hook and memoized actions/state.
+- `src/contexts/` separates analysis, theme, toast, history, and compare state.
+  Each context provides a guarded custom hook and memoized actions/state.
 - `src/components/ui/` contains reusable design-system primitives;
   `src/components/youtube/` contains analyzer form and result components.
 - `src/styles/` holds theme tokens, base styles, and component styles.
-- `/compare`, `/instagram`, and `/about` are placeholders. The History page
-  displays locally saved analysis results.
+- `/compare` ranks two or three YouTube videos for one question. Instagram and
+  About remain placeholders. The History page displays locally saved analysis
+  results.
 - `src/lib/historyStorage.js` validates and persists result summaries in
   browser `localStorage`; analysis still works when storage is unavailable.
 
@@ -53,6 +55,23 @@ persistent `DATA_DIR` path. Transcript duration is measured from available
 caption timestamps because the application does not fetch or scrape video
 metadata. YouTube may block caption requests from cloud-hosted IPs; the API
 returns an actionable error asking for a pasted timestamped transcript.
+
+## Multi-video comparison
+
+`POST /compare` validates a non-empty question, two to
+`MAX_COMPARE_VIDEOS` (default 3) distinct YouTube video IDs, then runs the same
+single-video analysis service concurrently. Each worker opens its own SQLite
+connections; SQLite uses a busy timeout, and the LLM uses independent standard
+library HTTP requests. Each video has a `COMPARE_TIMEOUT_SECONDS` (default 45)
+deadline. Timeouts and per-video failures become `Can't verify` rows instead of
+failing the request.
+
+The pure-code ranker orders by verdict (`Worth it`, `Skim`, `Rot`, `Can't
+verify`), then coverage, verified fact count, and stable input order. Internal
+coverage and fact-count fields never appear in the API response. `best` is
+non-null only when the leading result is `Worth it` or `Skim`. Cached analysis
+results are reused per video and question, so repeat comparisons make no model
+calls for cached videos.
 
 ```mermaid
 sequenceDiagram
@@ -90,6 +109,40 @@ sequenceDiagram
     API-->>UI: verdict, verified facts, timestamps, missing, metadata
 ```
 
+```mermaid
+sequenceDiagram
+    participant UI as Compare UI
+    participant API as Flask /compare
+    participant Workers as Parallel pipeline workers
+    participant Cache as SQLite DATA_DIR
+    participant YT as YouTube captions
+    participant LLM as Bazaarlink API
+    participant Rank as Local ranker
+    UI->>API: question + 2-3 YouTube URLs
+    API->>API: validate URLs and unique video IDs
+    par One analysis per video, with timeout
+        API->>Workers: analyze_video(question, URL)
+        Workers->>Cache: lookup transcript/result
+        opt transcript cache miss
+            Workers->>YT: fetch captions
+            YT-->>Workers: timestamped caption segments
+            Workers->>Cache: save transcript
+        end
+        opt result cache miss and matching evidence exists
+            Workers->>LLM: question + selected transcript windows
+            LLM-->>Workers: candidate facts and token usage
+        end
+        Workers->>Workers: verify facts and map verdict
+        Workers->>Cache: save result
+        Workers-->>API: public facts + internal rank fields
+    and
+        API->>Workers: analyze remaining videos concurrently
+    end
+    API->>Rank: rank results; preserve stable ties
+    Rank-->>API: distinct ranks and best video ID or null
+    API-->>UI: per-video facts, errors, ranks, aggregate tokens
+```
+
 ## API contract
 
 - `GET /health` returns `{"status": "ok"}`.
@@ -120,10 +173,44 @@ sequenceDiagram
   Errors use a JSON object with a human-readable `message`; caption or LLM
   failures also include a `result` with a `Can't verify` verdict.
 
+- `POST /compare` accepts:
+
+  ```json
+  { "question": "string", "urls": ["string", "string"] }
+  ```
+
+- Success returns:
+
+  ```json
+  {
+    "question": "string",
+    "best": "video_id or null",
+    "ranking": [
+      {
+        "rank": 1,
+        "videoId": "string",
+        "url": "string",
+        "verdict": "Worth it | Skim | Rot | Can't verify",
+        "facts": [{ "text": "string", "timestamp": "mm:ss", "url": "string" }],
+        "missing": ["string"],
+        "error": null,
+        "meta": { "cached": false, "tokens_in": 0, "tokens_out": 0 }
+      }
+    ],
+    "meta": { "tokens_in_total": 0, "tokens_out_total": 0 }
+  }
+  ```
+
+  Each failed video has verdict `Can't verify` and an `error` object containing
+  a human-readable `message`; other video results remain available. `best` is
+  set only for a leading `Worth it` or `Skim` result. Coverage and verified
+  fact counts are private ranker inputs.
+
 ## Configuration
 
 See `.env.example` for `BAZAARLINK_API_KEY`, `LLM_BASE_URL`, `MODEL_NAME`,
-token/window limits, `MAX_VIDEO_MINUTES`, and `DATA_DIR`. For local
+token/window limits, `MAX_VIDEO_MINUTES`, `MAX_COMPARE_VIDEOS`,
+`COMPARE_TIMEOUT_SECONDS`, and `DATA_DIR`. For local
 development, the root `.env` file is loaded automatically and ignored by Git.
 Hosted deployments should configure the key, base URL, and model as
 environment variables. The default model is `qwen/qwen3.7-flash:free` and the
@@ -142,8 +229,8 @@ quota errors. History is per browser and device; clearing site data removes it.
 
 ## Current boundaries
 
-- Only one video is analyzed per request; multi-video ranking is not
-  implemented.
+- Compare ranks at most three YouTube videos; it does not accept pasted
+  transcripts or save results to History.
 - Instagram remains paste-transcript-only and is not part of this pipeline.
 - No media is downloaded and no transcript is persisted outside `DATA_DIR`.
 - Real caption retrieval may fail in hosted environments due to YouTube IP

@@ -52,3 +52,11 @@ class AnalysisResponse(TypedDict):
     facts: list[AnalysisFact]
     missing: list[str]
     meta: AnalysisMeta
+
+
+class VideoResult(AnalysisResponse, total=False):
+    coverage: Literal["full", "partial", "none"]
+    verified_fact_count: int
+    error: str | None
+    error_status: int
+    failure_result: AnalysisResponse | None
