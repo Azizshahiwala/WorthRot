@@ -18,7 +18,6 @@ from backend.services.media.workdir import sweep_stale_workdirs
 ROOT_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
 
-
 def create_app(frontend_dist: Path = FRONTEND_DIST) -> Flask:
     app = Flask(__name__)
     settings = Settings.from_env()
