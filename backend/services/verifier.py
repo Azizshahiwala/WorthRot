@@ -1,14 +1,14 @@
 import re
 
 from backend.models import TranscriptWindow
+from backend.services.language import normalize_quote
 from backend.services.verdict import ModelFact
 
-WHITESPACE = re.compile(r"\s+")
 TIMESTAMP_PATTERN = re.compile(r"^(?:(\d+):)?([0-5]?\d):([0-5]\d)$")
 
 
 def _normalize(value: str) -> str:
-    return WHITESPACE.sub(" ", value.casefold()).strip()
+    return normalize_quote(value)
 
 
 def _timestamp_seconds(value: str) -> int | None:
@@ -17,6 +17,23 @@ def _timestamp_seconds(value: str) -> int | None:
         return None
     hours, minutes, seconds = match.groups()
     return (int(hours or 0) * 60 + int(minutes)) * 60 + int(seconds)
+
+
+def _quote_timestamp(quote: str, window: TranscriptWindow) -> str:
+    normalized_quote = _normalize(quote)
+    if window.segments:
+        normalized_segments = [
+            _normalize(segment.text) for segment in window.segments
+        ]
+        quote_start = " ".join(normalized_segments).find(normalized_quote)
+        if quote_start >= 0:
+            segment_start = 0
+            for segment, text in zip(window.segments, normalized_segments):
+                if quote_start < segment_start + len(text):
+                    seconds = int(segment.start)
+                    return f"{seconds // 60:02d}:{seconds % 60:02d}"
+                segment_start += len(text) + 1
+    return window.timestamp
 
 
 def verify_facts(
@@ -38,5 +55,10 @@ def verify_facts(
         if quote_key in seen_quotes:
             continue
         seen_quotes.add(quote_key)
-        verified.append({"text": fact["f"], "timestamp": window.timestamp})
+        verified.append(
+            {
+                "text": fact["f"],
+                "timestamp": _quote_timestamp(fact["q"], window),
+            }
+        )
     return verified

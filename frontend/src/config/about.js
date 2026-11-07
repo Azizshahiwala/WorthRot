@@ -6,6 +6,7 @@ export const about = {
   sectionTitles: {
     steps: "How it works",
     principles: "Principles",
+    latestChanges: "Latest changes",
     limits: "Limits",
     builtWith: "Built with",
   },
@@ -46,8 +47,25 @@ export const about = {
         "No accounts, no cookies. A hashed IP is kept for up to 2 days to enforce the daily limit. Uploaded files are deleted after processing.",
     },
   ],
+  latestChanges: [
+    {
+      title: "Support for multi-languages",
+      description:
+        "Check supported videos in different languages. Answers follow your question, while quotes stay in the original language and are verified against the transcript.",
+    },
+    {
+      title: "Question gap checks",
+      description:
+        "See which parts of your question the verified facts cover and what remains unanswered.",
+    },
+    {
+      title: "Compare agreement",
+      description:
+        "Compare verified facts across videos to see where they agree or differ.",
+    },
+  ],
   limits: [
-    "Each feature allows 10 requests per day per network.",
+    "Each feature allows 5 requests per 5 hours.",
     "Works with YouTube videos that have captions.",
     "Results are only as good as the transcript.",
     "Other video platforms are not supported.",
@@ -58,10 +76,10 @@ export const about = {
     "Flask, React, and Bazaarlink's OpenAI-compatible API. " +
     "Hosted on Embarko. Built for the Embarko AI hackathon.",
   author: {
-    name: "", // Fill these in with the project owner's details.
-    role: "",
-    githubUrl: "",
-    projectRepoUrl: "",
+    name: "Aziz shahiwala", // Fill these in with the project owner's details.
+    role: "Student Developer",
+    githubUrl: "https://github.com/Azizshahiwala",
+    projectRepoUrl: "https://github.com/Azizshahiwala/WorthRot/tree/worthrot-deploy",
     githubLabel: "WorthRot on GitHub",
     projectRepoLabel: "WorthRot project repository",
   },

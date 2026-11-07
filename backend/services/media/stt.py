@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from backend.services.language import detect_language, language_code
 from backend.services.media.errors import MediaProviderError
 
 MAX_TRANSCRIPT_CHARACTERS = 100_000
@@ -24,6 +25,7 @@ ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/speech-to-text"
 class Transcription:
     text: str
     timed: bool
+    language_code: str = "und"
 
 
 def has_gemini_api_key() -> bool:
@@ -31,7 +33,9 @@ def has_gemini_api_key() -> bool:
 
 
 def _format_timestamped_segments(
-    segments: list[tuple[float, str]], duration_seconds: float
+    segments: list[tuple[float, str]],
+    duration_seconds: float,
+    detected_language: str = "und",
 ) -> Transcription | None:
     lines: list[str] = []
     length = 0
@@ -55,7 +59,17 @@ def _format_timestamped_segments(
         lines.append(line)
         length += len(line) + 1
     if lines:
-        return Transcription("\n".join(lines), timed=True)
+        text = "\n".join(lines)
+        detected_code = language_code(detected_language)
+        return Transcription(
+            text,
+            timed=True,
+            language_code=detected_code
+            if detected_code != "und"
+            else detect_language(
+                " ".join(line.split("] ", 1)[-1] for line in lines)
+            ),
+        )
     return None
 
 
@@ -145,7 +159,11 @@ def _transcribe_elevenlabs(
         current_end = float(end)
     if current_words and current_start is not None:
         segments.append((current_start, " ".join(current_words)))
-    return _format_timestamped_segments(segments, duration_seconds)
+    return _format_timestamped_segments(
+        segments,
+        duration_seconds,
+        str(payload.get("language_code", "und")),
+    )
 
 
 def transcribe_audio(
@@ -162,11 +180,15 @@ def transcribe_audio(
                 "parts": [
                     {
                         "text": (
-                            "Transcribe the spoken words verbatim. Return concise "
+                            "Transcribe the spoken words verbatim in the original "
+                            "language and script; do not translate. Preserve "
+                            "code-switching, such as Hindi and English mixed as "
+                            "spoken. Return concise "
                             "consecutive speech segments with each segment's start "
                             "time in seconds from the beginning of the audio. Do not "
                             "summarize or invent speech. If there is no intelligible "
-                            "speech, return an empty segments array."
+                            "speech, return an empty segments array. Also return the "
+                            "primary language code in BCP-47 form as language_code."
                         )
                     },
                     {
@@ -194,8 +216,10 @@ def transcribe_audio(
                             "required": ["start_seconds", "text"],
                         },
                     }
+                    ,
+                    "language_code": {"type": "STRING"},
                 },
-                "required": ["segments"],
+                "required": ["segments", "language_code"],
             },
         },
     }
@@ -257,4 +281,14 @@ def transcribe_audio(
             ):
                 continue
             timestamped_segments.append((float(start), segment_text))
-    return _format_timestamped_segments(timestamped_segments, duration_seconds)
+    language = transcript_payload.get("language_code")
+    if not isinstance(language, str) or not language.strip():
+        language = detect_language(
+            " ".join(
+                item[1]
+                for item in timestamped_segments
+            )
+        )
+    return _format_timestamped_segments(
+        timestamped_segments, duration_seconds, language
+    )

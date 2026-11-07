@@ -16,7 +16,9 @@ from backend.services.media.errors import (
 
 logger = logging.getLogger(__name__)
 DURATION_PATTERN = re.compile(r"Duration:\s*(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)")
-STREAM_PATTERN = re.compile(r"Stream #\d+:(\d+).*?\b(Video|Audio|Subtitle):")
+STREAM_PATTERN = re.compile(
+    r"Stream #\d+:(\d+)(?:\(([^)]+)\))?.*?\b(Video|Audio|Subtitle):"
+)
 
 
 def resolve_ffmpeg(configured_path: str = "") -> str | None:
@@ -119,7 +121,7 @@ def _run_ffprobe(
         "-protocol_whitelist",
         "file",
         "-show_entries",
-        "format=duration:stream=codec_type,index",
+        "format=duration:stream=codec_type,index:stream_tags=language",
         "-of",
         "json",
         "-i",
@@ -207,8 +209,9 @@ def probe_media(path: Path, timeout: float) -> dict[str, object]:
     for line in stderr.splitlines():
         match = STREAM_PATTERN.search(line)
         if match:
-            index, stream_type = match.groups()
-            streams.append(
-                {"index": int(index), "codec_type": stream_type.lower()}
-            )
+            index, language, stream_type = match.groups()
+            stream = {"index": int(index), "codec_type": stream_type.lower()}
+            if language:
+                stream["tags"] = {"language": language}
+            streams.append(stream)
     return {"duration": duration, "streams": streams}

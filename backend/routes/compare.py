@@ -6,8 +6,10 @@ from flask import Blueprint, Response, jsonify, request
 
 from backend.models import VideoResult
 from backend.rate_limit import limited
+from backend.services.agreement import build_agreement
 from backend.services.config import Settings
 from backend.services.errors import ConfigurationError, InvalidInputError
+from backend.services.language import detect_language
 from backend.services.pipeline import analyze_video
 from backend.services.ranker import best_video_id, rank_results
 from backend.services.transcript import extract_video_id
@@ -21,11 +23,17 @@ def _failure(video_id: str, message: str) -> VideoResult:
         "verdict": "Can't verify",
         "facts": [],
         "missing": [],
+        "gap": None,
         "meta": {
             "video_id": video_id,
             "cached": False,
             "tokens_in": 0,
             "tokens_out": 0,
+            "questionLanguage": "und",
+            "transcriptLanguage": "und",
+            "transcriptOriginalLanguage": "und",
+            "transcriptSource": "auto",
+            "retrievalTranslationFailed": False,
         },
         "coverage": "none",
         "verified_fact_count": 0,
@@ -39,16 +47,27 @@ def _run_video(question: str, url: str) -> VideoResult:
 
 def _public_video_result(result: VideoResult) -> dict:
     error = result.get("error")
+    meta = {
+        "cached": result["meta"]["cached"],
+        "tokens_in": result["meta"]["tokens_in"],
+        "tokens_out": result["meta"]["tokens_out"],
+    }
+    for key in (
+        "questionLanguage",
+        "transcriptLanguage",
+        "transcriptOriginalLanguage",
+        "transcriptSource",
+        "retrievalTranslationFailed",
+    ):
+        if key in result["meta"]:
+            meta[key] = result["meta"][key]
     return {
         "verdict": result["verdict"],
         "facts": result["facts"],
         "missing": result["missing"],
+        "gap": result.get("gap"),
         "error": {"message": error} if error else None,
-        "meta": {
-            "cached": result["meta"]["cached"],
-            "tokens_in": result["meta"]["tokens_in"],
-            "tokens_out": result["meta"]["tokens_out"],
-        },
+        "meta": meta,
     }
 
 
@@ -93,6 +112,7 @@ def compare() -> Response | tuple[Response, int]:
     if len(set(video_ids)) != len(video_ids):
         return jsonify(message="Choose different videos to compare."), 400
 
+    compare_started = time.monotonic()
     executor = ThreadPoolExecutor(max_workers=len(normalized_urls))
     futures: list[Future[VideoResult]] = []
     submitted_at: list[float] = []
@@ -141,18 +161,46 @@ def compare() -> Response | tuple[Response, int]:
             }
         )
 
+    agreement = None
+    agreement_tokens_in = 0
+    agreement_tokens_out = 0
+    timeout_seconds = settings.compare_timeout_seconds - (
+        time.monotonic() - compare_started
+    )
+    if timeout_seconds > 0:
+        try:
+            agreement_result = build_agreement(
+                settings,
+                question.strip(),
+                ranked_results,
+                timeout_seconds=min(10, timeout_seconds),
+                output_language=detect_language(question.strip()),
+            )
+        except Exception:
+            logger.exception("Unexpected error while comparing verified facts.")
+            agreement_result = None
+        if agreement_result is not None:
+            agreement_tokens_in = agreement_result.get("tokens_in", 0)
+            agreement_tokens_out = agreement_result.get("tokens_out", 0)
+            agreement = {
+                key: agreement_result[key]
+                for key in ("agree", "disagree", "unanswered")
+            }
+
     return jsonify(
         {
             "question": question.strip(),
+            "questionLanguage": detect_language(question.strip()),
             "best": best_video_id(ranked_results),
             "ranking": ranking,
+            "agreement": agreement,
             "meta": {
                 "tokens_in_total": sum(
                     result["meta"]["tokens_in"] for result in results
-                ),
+                ) + agreement_tokens_in,
                 "tokens_out_total": sum(
                     result["meta"]["tokens_out"] for result in results
-                ),
+                ) + agreement_tokens_out,
             },
         }
     )

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Menu, Moon, Sun, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { tabs } from "../config/tabs.js";
 import { useTheme } from "../contexts/ThemeContext.jsx";
@@ -54,7 +55,11 @@ export default function NavBar() {
           <span className="visually-hidden">
             {menuOpen ? "Close" : "Open"} navigation menu
           </span>
-          <span aria-hidden="true">{menuOpen ? "×" : "☰"}</span>
+          {menuOpen ? (
+            <X aria-hidden="true" size={18} />
+          ) : (
+            <Menu aria-hidden="true" size={18} />
+          )}
         </Button>
 
         <nav
@@ -90,7 +95,11 @@ export default function NavBar() {
           onClick={toggleTheme}
           aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
         >
-          <span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
+          {theme === "light" ? (
+            <Moon aria-hidden="true" size={16} />
+          ) : (
+            <Sun aria-hidden="true" size={16} />
+          )}
           <span className="theme-label">{theme} mode</span>
         </Button>
       </div>

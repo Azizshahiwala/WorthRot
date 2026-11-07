@@ -9,15 +9,22 @@ def _failure_result(video_id: str, error: AnalysisError) -> VideoResult:
         "verdict": "Can't verify",
         "facts": [],
         "missing": [],
+        "gap": None,
         "meta": {
             "video_id": video_id,
             "cached": False,
             "tokens_in": 0,
             "tokens_out": 0,
+            "questionLanguage": "und",
+            "transcriptLanguage": "und",
+            "transcriptOriginalLanguage": "und",
+            "transcriptSource": "auto",
+            "retrievalTranslationFailed": False,
         },
     }
     return {
         **result,
+        "gap": None,
         "coverage": "none",
         "verified_fact_count": len(result["facts"]),
         "error": error.message,

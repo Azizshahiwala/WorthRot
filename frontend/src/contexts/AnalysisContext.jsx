@@ -51,6 +51,7 @@ export function AnalysisProvider({ children }) {
         verdict: response.verdict,
         facts: response.facts,
         missing: response.missing,
+        gap: response.gap,
         meta: response.meta,
       });
       setStatus("success");
@@ -73,6 +74,7 @@ export function AnalysisProvider({ children }) {
               verdict: failedResult.verdict,
               facts: failedResult.facts,
               missing: failedResult.missing,
+              gap: failedResult.gap,
               meta: failedResult.meta,
             }
           : null,

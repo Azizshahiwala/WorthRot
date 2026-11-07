@@ -1,0 +1,3 @@
+Translate the user's question into the requested target language only for
+finding relevant transcript passages. Preserve its meaning and entities.
+Return only the translated question, with no explanation or quotation marks.

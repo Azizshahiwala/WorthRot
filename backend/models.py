@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, TypedDict
 
 
@@ -12,6 +12,9 @@ class TranscriptSegment:
 @dataclass(frozen=True)
 class TranscriptDocument:
     segments: list[TranscriptSegment]
+    language_code: str = "und"
+    source: str = "manual"
+    original_language_code: str = "und"
 
     @property
     def duration_seconds(self) -> float:
@@ -27,6 +30,7 @@ class TranscriptWindow:
     end: float
     text: str
     score: float = 0.0
+    segments: list[TranscriptSegment] = field(default_factory=list)
 
     @property
     def timestamp(self) -> str:
@@ -45,12 +49,30 @@ class AnalysisMeta(TypedDict):
     cached: bool
     tokens_in: int
     tokens_out: int
+    questionLanguage: str
+    transcriptLanguage: str
+    transcriptOriginalLanguage: str
+    transcriptSource: str
+    retrievalTranslationFailed: bool
+
+
+class GapPart(TypedDict):
+    text: str
+    status: Literal["covered", "partial", "missing"]
+
+
+class GapCheck(TypedDict):
+    covered: int
+    total: int
+    label: Literal["All covered", "Partly covered", "Not covered"]
+    parts: list[GapPart]
 
 
 class AnalysisResponse(TypedDict):
     verdict: Literal["Worth it", "Skim", "Rot", "Can't verify"]
     facts: list[AnalysisFact]
     missing: list[str]
+    gap: GapCheck | None
     meta: AnalysisMeta
 
 
@@ -64,6 +86,10 @@ class MediaMeta(TypedDict):
     tokens_in: int
     tokens_out: int
     frames_sent: int
+    questionLanguage: str
+    transcriptLanguage: str
+    transcriptOriginalLanguage: str
+    transcriptSource: str
 
 
 class MediaAnalysisResponse(TypedDict):
@@ -71,6 +97,7 @@ class MediaAnalysisResponse(TypedDict):
     source: Literal["subtitles", "speech", "frames"]
     facts: list[MediaFact]
     missing: list[str]
+    gap: GapCheck | None
     meta: MediaMeta
 
 

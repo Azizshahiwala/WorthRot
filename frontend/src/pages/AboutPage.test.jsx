@@ -15,7 +15,11 @@ describe("AboutPage", () => {
         name: "Is this video worth your time?",
       }),
     ).toBeTruthy();
-    expect(screen.getAllByRole("list")).toHaveLength(3);
+    expect(screen.getByRole("heading", { name: "Latest changes" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Support for multi-languages" }),
+    ).toBeTruthy();
+    expect(screen.getAllByRole("list")).toHaveLength(4);
     expect(tabs.find((tab) => tab.path === "/about").enabled).toBe(true);
     expect(screen.queryByRole("heading", { name: "Author" })).toBeNull();
   });

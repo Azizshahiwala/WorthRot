@@ -67,6 +67,68 @@ describe("historyStorage", () => {
     );
   });
 
+  it("stores gaps and validated Compare summaries while accepting older entries", () => {
+    const comparison = {
+      best: "video-a",
+      ranking: [
+        {
+          rank: 1,
+          videoId: "video-a",
+          url: "https://youtu.be/video-a",
+          verdict: "Worth it",
+          facts: [
+            {
+              text: "Requires 12V",
+              timestamp: "00:12",
+              url: "https://youtu.be/video-a?t=12",
+            },
+          ],
+          missing: [],
+          error: null,
+        },
+        {
+          rank: 2,
+          videoId: "video-b",
+          url: "https://youtu.be/video-b",
+          verdict: "Skim",
+          facts: [
+            {
+              text: "Requires 12V",
+              timestamp: "00:20",
+              url: "https://youtu.be/video-b?t=20",
+            },
+          ],
+          missing: [],
+          error: null,
+        },
+      ],
+      agreement: {
+        agree: [{ point: "Needs 12V", videos: ["A", "B"] }],
+        disagree: [],
+        unanswered: [],
+      },
+    };
+    const entry = {
+      ...makeEntry("compare"),
+      source: "compare",
+      comparison,
+      gap: {
+        covered: 1,
+        total: 2,
+        label: "Partly covered",
+        parts: [
+          { text: "power supply", status: "covered" },
+          { text: "warranty", status: "missing" },
+        ],
+      },
+    };
+
+    expect(validateEntry(entry)).toBe(true);
+    expect(saveHistory([entry])).toEqual({ ok: true });
+    expect(loadHistory()[0]).toMatchObject({ comparison, gap: entry.gap });
+    expect(validateEntry(makeEntry("older-without-gap"))).toBe(true);
+  });
+
   it("saves the versioned envelope", () => {
     const entries = [makeEntry("one")];
 

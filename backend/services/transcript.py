@@ -11,6 +11,7 @@ from youtube_transcript_api import (
 
 from backend.models import TranscriptDocument, TranscriptSegment
 from backend.services.errors import InvalidInputError, TranscriptUnavailableError
+from backend.services.language import detect_language, language_code
 
 VIDEO_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{11}$")
 TIMESTAMPED_LINE = re.compile(
@@ -86,15 +87,59 @@ def parse_pasted_transcript(text: str) -> TranscriptDocument:
         except ValueError:
             continue
         segments.append(TranscriptSegment(start=start, duration=0.0, text=snippet))
-    return TranscriptDocument(segments=segments)
+    language = detect_language(" ".join(segment.text for segment in segments))
+    return TranscriptDocument(
+        segments=segments,
+        language_code=language,
+        source="manual",
+        original_language_code=language,
+    )
 
 
-def fetch_transcript(video_id: str) -> TranscriptDocument:
+def _transcript_candidates(transcripts, question_language: str):
+    question_code = language_code(question_language)
+    tracks = list(transcripts)  # TranscriptList is iterable (public API)
+    manual = [track for track in tracks if not track.is_generated]
+    generated = [track for track in tracks if track.is_generated]
+
+    candidates = []
+    candidates.extend(
+        (track, "manual", language_code(track.language_code))
+        for track in manual
+        if language_code(track.language_code) == question_code
+    )
+    candidates.extend(
+        (track, "manual", language_code(track.language_code))
+        for track in manual
+        if language_code(track.language_code) != question_code
+    )
+    candidates.extend(
+        (track, "auto", language_code(track.language_code))
+        for track in generated
+    )
+    for track in [*manual, *generated]:
+        if track.is_translatable and any(
+            language_code(item.language_code) == question_code
+            for item in track.translation_languages
+        ):
+            candidates.append(
+                (
+                    track.translate(question_code),
+                    "translated",
+                    language_code(track.language_code),
+                )
+            )
+    return candidates
+
+
+def fetch_transcript(
+    video_id: str, question_language: str = "en"
+) -> TranscriptDocument:
     try:
-        fetched = YouTubeTranscriptApi().fetch(video_id, languages=["en"])
+        transcripts = YouTubeTranscriptApi().list(video_id)
     except (NoTranscriptFound, TranscriptsDisabled) as error:
         raise TranscriptUnavailableError(
-            "No English captions were found. Paste a timestamped transcript instead."
+            "No usable captions were found. Paste a timestamped transcript instead."
         ) from error
     except RequestBlocked as error:
         raise TranscriptUnavailableError(
@@ -105,6 +150,30 @@ def fetch_transcript(video_id: str) -> TranscriptDocument:
             "We couldn't retrieve captions. Paste a timestamped transcript instead."
         ) from error
 
+    candidates = _transcript_candidates(
+        transcripts, question_language
+    )
+    if not candidates:
+        raise TranscriptUnavailableError(
+            "No usable captions were found. Paste a timestamped transcript instead."
+        )
+    last_error = None
+    for track, source, original_language in candidates:
+        try:
+            fetched = track.fetch()
+            break
+        except (
+            NoTranscriptFound,
+            TranscriptsDisabled,
+            RequestBlocked,
+            CouldNotRetrieveTranscript,
+        ) as error:
+            last_error = error
+    else:
+        raise TranscriptUnavailableError(
+            "No usable captions were found. Paste a timestamped transcript instead."
+        ) from last_error
+
     segments = [
         TranscriptSegment(
             start=float(snippet.start),
@@ -113,4 +182,9 @@ def fetch_transcript(video_id: str) -> TranscriptDocument:
         )
         for snippet in fetched
     ]
-    return TranscriptDocument(segments=segments)
+    return TranscriptDocument(
+        segments=segments,
+        language_code=language_code(track.language_code),
+        source=source,
+        original_language_code=original_language,
+    )

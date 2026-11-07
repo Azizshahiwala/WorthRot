@@ -8,7 +8,9 @@ from backend.services.config import Settings
 from backend.services.errors import ConfigurationError, LLMError
 from backend.services.verdict import (
     _request_facts,
+    map_gap,
     map_verdict,
+    parse_gap_parts,
     parse_model_json,
 )
 
@@ -34,6 +36,67 @@ def test_json_parser_rejects_invalid_json():
 
     with pytest.raises(LLMError, match="couldn't be verified"):
         parse_model_json('{"coverage":[],"facts":[],"missing":[]}')
+
+
+def test_json_parser_accepts_only_valid_question_parts():
+    parsed = parse_model_json(
+        '{"coverage":"partial","facts":[],"missing":[],"parts":['
+        '{"p":"setup cost","s":"covered"},'
+        '{"p":"required tools","s":"partial"},'
+        '{"p":"maintenance time","s":"missing"}]}'
+    )
+    assert parsed["parts"] == [
+        {"text": "setup cost", "status": "covered"},
+        {"text": "required tools", "status": "partial"},
+        {"text": "maintenance time", "status": "missing"},
+    ]
+    assert parse_model_json(
+        '{"coverage":"none","facts":[],"missing":[]}'
+    )["parts"] == []
+    assert parse_model_json(
+        '{"coverage":"none","facts":[],"missing":[],"parts":['
+        '{"p":"too many words in this question part is invalid","s":"covered"},'
+        '{"p":"other part","s":"missing"}]}'
+    )["parts"] == []
+    assert parse_gap_parts(
+        [{"p": "part", "s": []}, {"p": "other", "s": "missing"}]
+    ) == []
+
+
+@pytest.mark.parametrize(
+    ("parts", "fact_count", "expected_statuses", "label"),
+    [
+        (
+            [
+                {"text": "cost", "status": "covered"},
+                {"text": "tools", "status": "partial"},
+                {"text": "maintenance", "status": "missing"},
+            ],
+            0,
+            ["missing", "missing", "missing"],
+            "Not covered",
+        ),
+        (
+            [
+                {"text": "cost", "status": "covered"},
+                {"text": "tools", "status": "covered"},
+                {"text": "maintenance", "status": "covered"},
+            ],
+            2,
+            ["covered", "covered", "missing"],
+            "Partly covered",
+        ),
+    ],
+)
+def test_gap_mapping_uses_verified_fact_count(
+    parts, fact_count, expected_statuses, label
+):
+    gap = map_gap(parts, fact_count)
+
+    assert [part["status"] for part in gap["parts"]] == expected_statuses
+    assert gap["covered"] == expected_statuses.count("covered")
+    assert gap["total"] == len(parts)
+    assert gap["label"] == label
 
 
 @pytest.mark.parametrize(

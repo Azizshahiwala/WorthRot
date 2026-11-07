@@ -1,5 +1,7 @@
 import { Card } from "../ui/Card.jsx";
 import Badge from "../ui/Badge.jsx";
+import GapCheck from "../ui/GapCheck.jsx";
+import { getTranscriptLabel } from "../../lib/language.js";
 
 const verdictVariants = {
   "Worth it": "worth",
@@ -13,16 +15,28 @@ export default function FactsPanel({ result }) {
   const facts = Array.isArray(result?.facts) ? result.facts : [];
   const missing = Array.isArray(result?.missing) ? result.missing : [];
   const meta = result?.meta;
+  const language = meta?.questionLanguage;
+  const transcriptLabel = getTranscriptLabel(meta);
 
   return (
     <Card className="verdict-card" variant="elevated">
       <Badge variant={verdictVariants[verdict] || "unverified"}>{verdict}</Badge>
+      {transcriptLabel && (
+        <p className="transcript-language" aria-label="Transcript language">
+          {transcriptLabel}
+        </p>
+      )}
+      {meta?.retrievalTranslationFailed && (
+        <p className="language-confidence-note" role="note">
+          Cross-language matching was best-effort; confidence may be lower.
+        </p>
+      )}
 
       {facts.length > 0 && (
         <ul className="facts-list" aria-label="Verified facts">
           {facts.map((fact, index) => (
             <li className="fact-item" key={`${fact.timestamp}-${index}`}>
-              <span>{fact.text}</span>
+              <span lang={language || undefined} dir="auto">{fact.text}</span>
               {fact.url ? (
                 <a
                   className="timestamp-link"
@@ -44,10 +58,14 @@ export default function FactsPanel({ result }) {
       {missing.length > 0 && (
         <ul className="missing-chips" aria-label="Missing topics">
           {missing.map((item, index) => (
-            <li key={`${item}-${index}`}>{item}</li>
+            <li key={`${item}-${index}`} lang={language || undefined} dir="auto">
+              {item}
+            </li>
           ))}
         </ul>
       )}
+
+      <GapCheck gap={result?.gap} language={language} />
 
       {import.meta.env.DEV && meta && (
         <small className="analysis-meta">

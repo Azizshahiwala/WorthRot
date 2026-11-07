@@ -29,6 +29,7 @@ def result(video_id: str, verdict: str = "Worth it") -> VideoResult:
             }
         ],
         "missing": [],
+        "gap": None,
         "meta": {
             "video_id": video_id,
             "cached": False,
@@ -66,6 +67,16 @@ def test_compare_ranks_results_and_returns_only_public_fields(
         "backend.routes.compare._run_video",
         lambda question, url: result(url.split("=")[-1]),
     )
+    monkeypatch.setattr(
+        "backend.routes.compare.build_agreement",
+        lambda *args, **kwargs: {
+            "agree": [{"point": "A verified fact", "videos": ["A", "B"]}],
+            "disagree": [],
+            "unanswered": [],
+            "tokens_in": 3,
+            "tokens_out": 2,
+        },
+    )
 
     response = client.post(
         "/compare",
@@ -78,13 +89,19 @@ def test_compare_ranks_results_and_returns_only_public_fields(
     assert [item["rank"] for item in payload["ranking"]] == [1, 2]
     assert payload["ranking"][0]["videoId"] == VIDEO_IDS[0]
     assert payload["ranking"][0]["error"] is None
+    assert payload["ranking"][0]["gap"] is None
     assert payload["ranking"][0]["meta"] == {
         "cached": False,
         "tokens_in": 10,
         "tokens_out": 5,
     }
     assert "coverage" not in payload["ranking"][0]
-    assert payload["meta"] == {"tokens_in_total": 20, "tokens_out_total": 10}
+    assert payload["agreement"] == {
+        "agree": [{"point": "A verified fact", "videos": ["A", "B"]}],
+        "disagree": [],
+        "unanswered": [],
+    }
+    assert payload["meta"] == {"tokens_in_total": 23, "tokens_out_total": 12}
 
 
 def test_compare_partial_failure_does_not_fail_other_videos(monkeypatch, tmp_path):
@@ -106,6 +123,7 @@ def test_compare_partial_failure_does_not_fail_other_videos(monkeypatch, tmp_pat
     assert by_id[VIDEO_IDS[0]]["verdict"] == "Can't verify"
     assert by_id[VIDEO_IDS[0]]["error"]["message"]
     assert by_id[VIDEO_IDS[1]]["verdict"] == "Worth it"
+    assert response.get_json()["agreement"] is None
 
 
 def test_compare_timeout_does_not_block_completed_videos(monkeypatch, tmp_path):
@@ -129,6 +147,28 @@ def test_compare_timeout_does_not_block_completed_videos(monkeypatch, tmp_path):
     assert by_id[VIDEO_IDS[1]]["verdict"] == "Worth it"
 
 
+def test_agreement_failure_does_not_fail_compare(monkeypatch, tmp_path):
+    client = prepare_client(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        "backend.routes.compare._run_video",
+        lambda question, url: result(url.split("=")[-1]),
+    )
+    monkeypatch.setattr(
+        "backend.routes.compare.build_agreement",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("model error")),
+    )
+
+    response = client.post(
+        "/compare",
+        json={"question": "Question?", "urls": VIDEO_URLS[:2]},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["agreement"] is None
+    assert len(payload["ranking"]) == 2
+
+
 def test_repeated_compare_uses_cached_result_without_another_llm_call(
     monkeypatch, tmp_path
 ):
@@ -139,7 +179,8 @@ def test_repeated_compare_uses_cached_result_without_another_llm_call(
     )
     model_calls = []
     monkeypatch.setattr(
-        "backend.services.analyzer.fetch_transcript", lambda video_id: transcript
+        "backend.services.analyzer.fetch_transcript",
+        lambda video_id, question_language: transcript,
     )
 
     def extract(settings, context):
@@ -164,6 +205,7 @@ def test_repeated_compare_uses_cached_result_without_another_llm_call(
         }
 
     monkeypatch.setattr("backend.services.analyzer.extract_facts", extract)
+    monkeypatch.setattr("backend.routes.compare.build_agreement", lambda *args, **kwargs: None)
     payload = {"question": "How to sharpen a knife?", "urls": VIDEO_URLS[:2]}
 
     first = client.post("/compare", json=payload)

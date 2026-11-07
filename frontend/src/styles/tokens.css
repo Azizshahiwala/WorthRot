@@ -17,6 +17,7 @@
   --color-rot-bg: #f6d4c9;
   --color-unverified: #343a50;
   --color-unverified-bg: #e0dfd7;
+  --color-evidence-bg: #e8e4d8;
   --color-success: #176641;
   --color-warning: #765000;
   --color-danger: #a72520;
@@ -27,7 +28,9 @@
   --color-pattern: #d9cfba;
   --color-overlay: #1c1b1933;
   --color-transparent: transparent;
-  --font-sans: "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-sans: "Trebuchet MS", "Segoe UI", "Noto Sans", "Noto Sans Devanagari",
+    "Noto Sans Gujarati", "Noto Sans Arabic", "Noto Sans CJK SC",
+    "Noto Sans CJK JP", sans-serif;
   --font-display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --text-xs: 0.75rem;
@@ -100,6 +103,7 @@
   --color-rot-bg: #472824;
   --color-unverified: #ddd6c9;
   --color-unverified-bg: #383731;
+  --color-evidence-bg: #34332d;
   --color-success: #9cdda8;
   --color-warning: #f4d477;
   --color-danger: #ff9686;

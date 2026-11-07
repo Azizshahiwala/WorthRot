@@ -1,4 +1,4 @@
-from backend.models import TranscriptWindow
+from backend.models import TranscriptSegment, TranscriptWindow
 from backend.services.retriever import (
     estimate_tokens,
     format_context,
@@ -81,3 +81,25 @@ def test_short_transcript_skips_keyword_retrieval():
 
     assert short_transcript is True
     assert [window.timestamp for window in selected] == ["00:00", "00:10"]
+
+
+def test_scored_windows_preserve_caption_segments():
+    segment = TranscriptSegment(12, 3, "Use a whetstone to sharpen a knife.")
+    windows = [
+        TranscriptWindow(
+            0,
+            40,
+            segment.text,
+            segments=[segment],
+        )
+    ]
+
+    selected, _ = retrieve_windows(
+        "How do I sharpen a knife?",
+        windows,
+        top_k=1,
+        short_transcript_tokens=1,
+        max_context_tokens=200,
+    )
+
+    assert selected[0].segments == [segment]

@@ -9,6 +9,8 @@ import {
 import { useToast } from "./ToastContext.jsx";
 import {
   HISTORY_STORAGE_KEY,
+  isComparison,
+  isGapCheck,
   isHistoryStorageAvailable,
   loadHistory,
   MAX_HISTORY_ENTRIES,
@@ -17,7 +19,7 @@ import {
 
 const HistoryContext = createContext(null);
 const SAVED_VERDICTS = new Set(["Worth it", "Skim", "Rot", "Can't verify"]);
-const HISTORY_SOURCES = new Set(["youtube", "transcript", "media"]);
+const HISTORY_SOURCES = new Set(["youtube", "transcript", "media", "compare"]);
 
 function normalizeQuestion(question) {
   return question.trim().toLowerCase().replace(/\s+/g, " ");
@@ -26,6 +28,13 @@ function normalizeQuestion(question) {
 function getEntrySource(entry) {
   if (HISTORY_SOURCES.has(entry.source)) return entry.source;
   return entry.url ? "youtube" : "transcript";
+}
+
+function comparisonKey(comparison) {
+  return comparison.ranking
+    .map((video) => video.videoId)
+    .sort()
+    .join(",");
 }
 
 function makeId() {
@@ -63,7 +72,11 @@ export function HistoryProvider({ children }) {
 
   const addEntry = useCallback(
     ({ question, videoId, url, result, source }) => {
-      if (!question?.trim() || !SAVED_VERDICTS.has(result?.verdict)) {
+      if (
+        !question?.trim() ||
+        !SAVED_VERDICTS.has(result?.verdict) ||
+        (source === "compare" && !isComparison(result?.comparison))
+      ) {
         return false;
       }
       const safeUrl = typeof url === "string" ? url : "";
@@ -88,6 +101,19 @@ export function HistoryProvider({ children }) {
           : [],
         missing: Array.isArray(result.missing) ? [...result.missing] : [],
       };
+      if (typeof result.meta?.questionLanguage === "string") {
+        entry.meta = {
+          questionLanguage: result.meta.questionLanguage,
+          transcriptLanguage: result.meta.transcriptLanguage,
+          transcriptOriginalLanguage: result.meta.transcriptOriginalLanguage,
+          transcriptSource: result.meta.transcriptSource,
+          retrievalTranslationFailed: result.meta.retrievalTranslationFailed,
+        };
+      }
+      if (isGapCheck(result.gap)) entry.gap = result.gap;
+      if (entrySource === "compare" && isComparison(result.comparison)) {
+        entry.comparison = result.comparison;
+      }
       const nextEntries = [
         entry,
         ...entries.filter(
@@ -95,6 +121,16 @@ export function HistoryProvider({ children }) {
             const existingSource = getEntrySource(existing);
             if (entry.source === "media" || existingSource === "media") {
               return true;
+            }
+            if (entry.source === "compare" || existingSource === "compare") {
+              return (
+                entry.source !== existingSource ||
+                normalizeQuestion(existing.question) !== normalizedQuestion ||
+                !entry.comparison ||
+                !existing.comparison ||
+                comparisonKey(entry.comparison) !==
+                  comparisonKey(existing.comparison)
+              );
             }
             return (
               existing.videoId !== entry.videoId ||

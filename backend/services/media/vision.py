@@ -8,6 +8,8 @@ from urllib.request import Request, urlopen
 from backend.services.config import Settings
 from backend.services.media.errors import MediaProviderError
 from backend.services.media.frames import VideoFrame
+from backend.services.language import detect_language, language_name, word_count
+from backend.services.verdict import parse_gap_parts
 
 MAX_FACTS = 5
 MAX_FACT_WORDS = 15
@@ -15,13 +17,18 @@ MAX_MISSING_ITEMS = 3
 MAX_MISSING_WORDS = 8
 TIMESTAMP_PATTERN = re.compile(r"^(?:(\d+):)?([0-5]?\d):([0-5]\d)$")
 SYSTEM_PROMPT = """Describe only what is visible in the supplied video frames.
-Return JSON only with coverage, facts, and missing. Each fact must answer the
+Read on-screen text in any language. Write facts, missing items, and question
+parts in the requested answer language. Mark facts from small or stylized
+non-Latin text as approximate.
+Return JSON only with coverage, facts, missing, and parts. Each fact must answer the
 question, describe something visible, use at most 15 words, and cite the exact
 timestamp of a supplied frame. Return at most 5 facts and 3 missing topics.
-Each missing topic has at most 8 words. If the frames do not answer the
+Each missing topic has at most 8 words. Split the question into 2-4 short
+parts of at most 8 words; judge each only from supplied frames, and mark a
+part covered only when supported by a visible fact. If the frames do not answer the
 question, use coverage "none" and an empty facts list.
 Shape: {"coverage":"full|partial|none","facts":[{"f":"...","t":"mm:ss"}],
-"missing":["..."]}"""
+"missing":["..."],"parts":[{"p":"...","s":"covered|partial|missing"}]}"""
 
 
 def _seconds(timestamp: str) -> int | None:
@@ -32,7 +39,9 @@ def _seconds(timestamp: str) -> int | None:
     return (int(hours or 0) * 60 + int(minutes)) * 60 + int(seconds)
 
 
-def _parse_response(content: str, sent_timestamps: set[str]) -> dict:
+def _parse_response(
+    content: str, sent_timestamps: set[str], language: str = "und"
+) -> dict:
     try:
         payload = json.loads(content.strip())
     except json.JSONDecodeError as error:
@@ -57,7 +66,7 @@ def _parse_response(content: str, sent_timestamps: set[str]) -> dict:
         if (
             not isinstance(text, str)
             or not text.strip()
-            or len(text.split()) > MAX_FACT_WORDS
+            or word_count(text, language) > MAX_FACT_WORDS
             or not isinstance(timestamp, str)
             or timestamp not in sent_timestamps
             or _seconds(timestamp) is None
@@ -70,16 +79,25 @@ def _parse_response(content: str, sent_timestamps: set[str]) -> dict:
         if (
             isinstance(value, str)
             and value.strip()
-            and len(value.split()) <= MAX_MISSING_WORDS
+            and word_count(value, language) <= MAX_MISSING_WORDS
         )
     ][:MAX_MISSING_ITEMS]
     if coverage == "none":
         facts = []
-    return {"coverage": coverage, "facts": facts, "missing": missing}
+    return {
+        "coverage": coverage,
+        "facts": facts,
+        "missing": missing,
+        "parts": parse_gap_parts(payload.get("parts"), language),
+    }
 
 
 def analyze_frames(
-    question: str, frames: list[VideoFrame], settings: Settings, timeout: float
+    question: str,
+    frames: list[VideoFrame],
+    settings: Settings,
+    timeout: float,
+    question_language: str | None = None,
 ) -> dict:
     api_key = os.environ.get("BAZAARLINK_API_KEY", "").strip()
     if not api_key:
@@ -88,7 +106,16 @@ def analyze_frames(
             "in the backend environment."
         )
 
-    content = [{"type": "text", "text": f"Question: {question}"}]
+    question_language = question_language or detect_language(question)
+    content = [
+        {
+            "type": "text",
+            "text": (
+                f"Answer language: {language_name(question_language)} "
+                f"({question_language}).\nQuestion: {question}"
+            ),
+        }
+    ]
     for frame in frames:
         encoded = base64.b64encode(frame.path.read_bytes()).decode("ascii")
         content.append(
@@ -150,7 +177,11 @@ def analyze_frames(
         )
     if not isinstance(response_content, str):
         raise MediaProviderError("The vision model returned an invalid response.")
-    parsed = _parse_response(response_content, {frame.timestamp for frame in frames})
+    parsed = _parse_response(
+        response_content,
+        {frame.timestamp for frame in frames},
+        question_language,
+    )
     tokens_in = usage.get("prompt_tokens", 0) if isinstance(usage, dict) else 0
     tokens_out = usage.get("completion_tokens", 0) if isinstance(usage, dict) else 0
     if not isinstance(tokens_in, int) or tokens_in < 0:

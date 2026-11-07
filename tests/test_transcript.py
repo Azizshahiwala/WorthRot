@@ -36,3 +36,5 @@ def test_timestamped_pasted_transcript_keeps_timestamps():
         (12, "The first useful fact."),
         (63, "The second useful fact."),
     ]
+    assert transcript.language_code == "en"
+    assert transcript.source == "manual"

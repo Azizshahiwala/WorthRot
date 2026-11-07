@@ -53,10 +53,10 @@ describe("about content", () => {
       about.principles.find(({ title }) => title === "Private by default")
         .description,
     ).toBe(
-      "No accounts, no cookies. A hashed IP is kept for up to 2 days to enforce the daily limit. Uploaded files are deleted after processing.",
+      "No accounts, no cookies. A hashed IP is kept for up to 10 hours to enforce the rate limit. Uploaded files are deleted after processing.",
     );
     expect(about.limits).toContain(
-      "Each feature allows 10 requests per day per network.",
+      "Each feature allows 5 requests per network, then a 5-hour cooldown.",
     );
     expect(about.limits).toContain(
       "The Other tab accepts MP4 and MP3 files up to a size and length cap.",

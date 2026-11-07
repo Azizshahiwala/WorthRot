@@ -19,6 +19,7 @@ from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 from backend.services.errors import ConfigurationError
 
 logger = logging.getLogger(__name__)
+WINDOW_SECONDS = 5 * 60 * 60
 FEATURES = ("analyze", "compare", "media")
 rate_limit_bp = Blueprint("rate_limit", __name__)
 
@@ -55,7 +56,7 @@ class RateLimitSettings:
         if enabled_value not in {"true", "false"}:
             raise ConfigurationError("RATE_LIMIT_ENABLED must be true or false.")
 
-        base_limit = _read_positive_int("RATE_LIMIT_PER_FEATURE", 10)
+        base_limit = _read_positive_int("RATE_LIMIT_PER_FEATURE", 5)
         feature_limits = {
             feature: _read_positive_int(
                 f"RATE_LIMIT_{feature.upper()}", base_limit
@@ -129,19 +130,18 @@ class RateLimiter:
 
     def _reset(self, now: datetime | None = None) -> tuple[str, int, int]:
         current = now or self._now()
-        reset_at = datetime.combine(
-            current.date() + timedelta(days=1),
-            datetime.min.time(),
-            tzinfo=self.settings.timezone,
-        )
+        timestamp = current.timestamp()
+        end = (int(timestamp // WINDOW_SECONDS) + 1) * WINDOW_SECONDS
+        reset_at = datetime.fromtimestamp(end, tz=self.settings.timezone)
         return (
             reset_at.isoformat(),
-            int(reset_at.timestamp()),
-            max(1, int((reset_at - current).total_seconds())),
+            int(end),
+            max(1, int(end - timestamp)),
         )
 
-    def _day(self) -> str:
-        return self._now().date().isoformat()
+    def _day(self, now: datetime | None = None) -> str:
+        # "day" now names the current 5-hour window.
+        return str(int((now or self._now()).timestamp() // WINDOW_SECONDS))
 
     def _connection(self) -> sqlite3.Connection:
         connection = getattr(self._connections, "connection", None)
@@ -239,10 +239,14 @@ class RateLimiter:
             self._purge_old_rows()
 
     def _purge_old_rows(self) -> None:
-        yesterday = (self._now().date() - timedelta(days=1)).isoformat()
+        previous = int(self._day()) - 1
         connection = self._connection()
-        connection.execute("DELETE FROM rate_counts WHERE day < ?", (yesterday,))
-        connection.execute("DELETE FROM global_counts WHERE day < ?", (yesterday,))
+        connection.execute(
+            "DELETE FROM rate_counts WHERE CAST(day AS INTEGER) < ?", (previous,)
+        )
+        connection.execute(
+            "DELETE FROM global_counts WHERE CAST(day AS INTEGER) < ?", (previous,)
+        )
 
     def purge_stale_on_startup(self) -> None:
         if not self.settings.enabled:
@@ -312,7 +316,7 @@ class RateLimiter:
         connection = self._connection()
         key_hash = self._key_hash()
         now = self._now()
-        day = now.date().isoformat()
+        day = self._day(now)
         bypassed_ip = self._is_bypassed()
         try:
             connection.execute("BEGIN IMMEDIATE")

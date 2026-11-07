@@ -5,6 +5,8 @@ cobalt, lemon, warm paper, condensed display type, and high-contrast inked
 edges. Components use CSS custom properties from
 `frontend/src/styles/tokens.css`; new data-display styles use shared color,
 spacing, and typography tokens.
+Action icons use Lucide React as decorative SVGs; controls retain accessible
+text labels or `aria-label` names.
 
 ## Tokens
 
@@ -12,6 +14,7 @@ spacing, and typography tokens.
 |---|---|---|
 | Brand colors | `--color-brand`, `--color-brand-hover`, `--color-brand-contrast`, `--color-brand-text` | Brand surfaces, accessible text contrast, and emphasis |
 | Neutral colors | `--color-bg`, `--color-surface`, `--color-border`, `--color-text`, `--color-text-muted` | Page, cards, borders, and text |
+| Evidence summary | `--color-evidence-bg` | Shaded gap and cross-video agreement blocks in both themes |
 | Verdict colors | `--color-worth`, `--color-skim`, `--color-rot`, `--color-unverified` and their `-bg` pairs | Verdict badges and evidence |
 | Feedback colors | `--color-success`, `--color-warning`, `--color-danger`, `--color-info` | Toasts and inline feedback |
 | Typography | `--font-sans`, `--font-mono`, `--text-xs` through `--text-2xl`, `--weight-regular/medium/bold`, `--leading-tight/normal`, `--tracking-*` | Text roles and hierarchy |
@@ -166,10 +169,14 @@ the form's inline error.
 `VerdictCard` is a compact facts panel. It places the text verdict badge before
 a short bulleted list; each line pairs one verified fact with its timestamp
 link. Transcript-only facts show a timestamp without a link. Missing topics
-appear as muted chips only when present. There are no confidence scores, quote
-blocks, summaries, or explanatory paragraphs in the success result. In
-development only, a muted metadata line shows input/output token usage and a
-cache tag for cached results.
+appear as muted chips only when present. There are no confidence scores or
+quote blocks in the success result. In development only, a muted metadata line
+shows input/output token usage and a cache tag for cached results.
+
+`GapCheck` follows facts and missing topics when question parts are available.
+It shows the covered count and status words alongside symbols, on a shaded
+surface using `--color-evidence-bg`; empty or old cached gap data renders
+nothing. It describes checked facts, not necessarily the whole video.
 
 ### History ledger
 
@@ -180,6 +187,8 @@ reveals the shared `FactsPanel`; deleting and two-step clear actions remain
 separate buttons. The empty state points back to YouTube, while a brief inline
 notice explains when browser storage is unavailable. History is local to this
 browser and never sent to the server.
+Compare entries expand to a rank table, agreement block, and their per-video
+facts without making another request.
 
 ### Compare form
 
@@ -198,6 +207,10 @@ input order. The table is followed by per-video result sections that reuse the
 YouTube `FactsPanel`; failed videos show a short error and the text label
 “Could not check.” When no video is worth watching or skimming, the results
 include the single line “None of these videos cover your question.”
+When available, an `AgreementBlock` follows the rank table. Its three labelled
+lines summarize agree, disagree, and unanswered points from verified facts,
+and map video letters to their rank and ID. Empty categories get a short text
+fallback; a null agreement renders no block.
 
 ### Compare components
 
@@ -235,6 +248,19 @@ include the single line “None of these videos cover your question.”
 - **Do:** Keep failed videos labelled “Could not check.”
 - **Don't:** Render summaries or unsupported conclusions.
 - **Example:** `<CompareResultList ranking={result.ranking} />`
+
+#### AgreementBlock
+
+- **Description:** Shaded summary of cross-video agreement based on verified
+  facts only.
+- **Variants:** Three labelled lines for agree, disagree, and unanswered; null
+  data renders nothing.
+- **Props:** `agreement` and the ranked `ranking` used to map A/B/C to rank and
+  video ID.
+- **Do:** Keep the facts-only limitation visible and name the compared videos.
+- **Don't:** Change ranking or claim what a video says beyond its verified
+  facts.
+- **Example:** `<AgreementBlock agreement={result.agreement} ranking={result.ranking} />`
 
 #### MediaForm
 
