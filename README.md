@@ -5,6 +5,27 @@ returns a verdict, short timestamped facts verified against the transcript, and
 any missing topics, with a question-level gap check. Compare ranks videos and
 summarizes agreement using their verified facts.
 
+Analyze multilingual videos, compare two or three sources, or check
+user-uploaded MP4/MP3 files. Quotes stay in their source language and must be
+verified against timestamped evidence.
+
+## Project guides
+
+- [Documentation](Documentation.md): features, API, privacy, setup, and tests.
+- [Instructions](Instructions.md): consolidated product and feature
+  requirements.
+- [Architecture](docs/architecture.md): implementation details and API
+  contracts.
+
+## Features
+
+- YouTube analysis with captions or a pasted timestamped transcript
+- Multilingual transcript selection, retrieval, and question-language results
+- Compare rankings and verified cross-video agreement
+- MP4/MP3 analysis using subtitles, speech transcription, or sampled frames
+- Question gap checks and on-device History
+- Per-network daily request limits
+
 ## Requirements
 
 - Python 3.10+
