@@ -5,7 +5,7 @@ function videoLabel(letter, ranking) {
     : letter;
 }
 
-export default function AgreementBlock({ agreement, ranking }) {
+export default function AgreementBlock({ agreement, ranking, language }) {
   if (!agreement) return null;
 
   const agree = Array.isArray(agreement.agree) ? agreement.agree : [];
@@ -18,6 +18,8 @@ export default function AgreementBlock({ agreement, ranking }) {
     <section
       className="evidence-summary agreement-block"
       aria-label="Cross-video agreement based on checked facts"
+      lang={language || undefined}
+      dir="auto"
     >
       <p>
         <strong>Agree:</strong>{" "}

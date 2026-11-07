@@ -35,6 +35,7 @@ export default function ComparePage() {
           <AgreementBlock
             agreement={result.agreement}
             ranking={result.ranking}
+            language={result.questionLanguage}
           />
           <CompareResultList ranking={result.ranking} />
           {import.meta.env.DEV && (

@@ -83,6 +83,7 @@ export function CompareProvider({ children }) {
             best: response.best,
             ranking: response.ranking,
             agreement: response.agreement ?? null,
+            questionLanguage: response.questionLanguage,
           },
         },
       });

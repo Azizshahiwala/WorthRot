@@ -15,6 +15,11 @@ def _failure_result(video_id: str, error: AnalysisError) -> VideoResult:
             "cached": False,
             "tokens_in": 0,
             "tokens_out": 0,
+            "questionLanguage": "und",
+            "transcriptLanguage": "und",
+            "transcriptOriginalLanguage": "und",
+            "transcriptSource": "auto",
+            "retrievalTranslationFailed": False,
         },
     }
     return {

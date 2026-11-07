@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 from backend.models import GapCheck, GapPart
 from backend.services.config import DEFAULT_LLM_BASE_URL, Settings
 from backend.services.errors import ConfigurationError, LLMError
+from backend.services.language import language_name, word_count
 
 MAX_FACTS = 5
 MAX_MISSING_ITEMS = 3
@@ -18,6 +19,7 @@ MAX_MISSING_WORDS = 8
 WORTH_IT_MINIMUM_FACTS = 2
 SKIM_MINIMUM_FACTS = 1
 FENCE_PATTERN = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
+PROMPT_VERSION = "multilingual-v1"
 
 
 class ModelFact(TypedDict):
@@ -35,11 +37,11 @@ class Extraction(TypedDict):
     tokens_out: int
 
 
-def _word_count(value: str) -> int:
-    return len(value.split())
+def _word_count(value: str, language: str = "und") -> int:
+    return word_count(value, language)
 
 
-def parse_gap_parts(value: object) -> list[GapPart]:
+def parse_gap_parts(value: object, language: str = "und") -> list[GapPart]:
     if not isinstance(value, list) or not 2 <= len(value) <= 4:
         return []
     parts: list[GapPart] = []
@@ -50,7 +52,7 @@ def parse_gap_parts(value: object) -> list[GapPart]:
         if (
             not isinstance(text, str)
             or not text.strip()
-            or _word_count(text) > 8
+            or _word_count(text, language) > 8
             or not isinstance(status, str)
             or status not in {"covered", "partial", "missing"}
         ):
@@ -129,7 +131,7 @@ def _parse_json_response(response_text: str) -> object:
         ) from error
 
 
-def parse_model_json(response_text: str) -> dict:
+def parse_model_json(response_text: str, language: str = "und") -> dict:
     data = _parse_json_response(response_text)
     if not isinstance(data, dict):
         raise LLMError("The analysis response couldn't be verified. Please try again.")
@@ -157,8 +159,8 @@ def parse_model_json(response_text: str) -> dict:
             " ".join(quote.split()),
         )
         if (
-            _word_count(text) > MAX_FACT_WORDS
-            or _word_count(quote) > MAX_QUOTE_WORDS
+            _word_count(text, language) > MAX_FACT_WORDS
+            or _word_count(quote, language) > MAX_QUOTE_WORDS
         ):
             continue
         parsed_facts.append({"f": text, "t": timestamp, "q": quote})
@@ -169,14 +171,14 @@ def parse_model_json(response_text: str) -> dict:
         if (
             isinstance(item, str)
             and item.strip()
-            and _word_count(item) <= MAX_MISSING_WORDS
+            and _word_count(item, language) <= MAX_MISSING_WORDS
         )
     ][:MAX_MISSING_ITEMS]
     return {
         "coverage": coverage,
         "facts": parsed_facts if coverage != "none" else [],
         "missing": parsed_missing,
-        "parts": parse_gap_parts(data.get("parts")),
+        "parts": parse_gap_parts(data.get("parts"), language),
     }
 
 

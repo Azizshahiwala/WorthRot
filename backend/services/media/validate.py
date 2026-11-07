@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from backend.services.config import Settings
+from backend.services.language import language_code
 from backend.services.media.errors import MediaError, UnsupportedMediaError
 from backend.services.media.ffmpeg_runner import probe_media
 
@@ -100,12 +101,35 @@ def copy_upload(stream: BinaryIO, path: Path, max_bytes: int) -> int:
     return total
 
 
-def subtitle_stream_index(streams: list[dict[str, object]]) -> int | None:
+def _subtitle_language(stream: dict[str, object]) -> str:
+    tags = stream.get("tags")
+    if isinstance(tags, dict) and isinstance(tags.get("language"), str):
+        return language_code(tags["language"])
+    return "und"
+
+
+def subtitle_stream_index(
+    streams: list[dict[str, object]], question_language: str = "und"
+) -> int | None:
+    subtitles = [
+        stream
+        for stream in streams
+        if stream.get("codec_type") == "subtitle"
+        and isinstance(stream.get("index"), int)
+    ]
+    for stream in subtitles:
+        if _subtitle_language(stream) == language_code(question_language):
+            return stream["index"]
+    return subtitles[0]["index"] if subtitles else None
+
+
+def subtitle_stream_language(
+    streams: list[dict[str, object]], stream_index: int
+) -> str:
     for stream in streams:
-        if stream.get("codec_type") == "subtitle":
-            index = stream.get("index")
-            return index if isinstance(index, int) else None
-    return None
+        if stream.get("index") == stream_index:
+            return _subtitle_language(stream)
+    return "und"
 
 
 def validate_question(question: str) -> None:

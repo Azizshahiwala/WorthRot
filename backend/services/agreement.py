@@ -3,6 +3,7 @@ import logging
 
 from backend.models import VideoResult
 from backend.services.config import Settings
+from backend.services.language import language_name
 from backend.services.verdict import _parse_json_response, _request_facts
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,7 @@ def build_agreement(
     question: str,
     ranked_results: list[VideoResult],
     timeout_seconds: float | None = None,
+    output_language: str = "en",
 ) -> dict | None:
     labeled_results = [
         (chr(ord("A") + index), result)
@@ -97,6 +99,9 @@ def build_agreement(
     context = json.dumps(
         {
             "question": question,
+            "output_language": (
+                f"{language_name(output_language)} ({output_language})"
+            ),
             "videos": [
                 {
                     "label": label,

@@ -10,6 +10,47 @@ function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function isLanguageMeta(value) {
+  return (
+    value === undefined ||
+    (isRecord(value) &&
+      ["questionLanguage", "transcriptLanguage", "transcriptOriginalLanguage", "transcriptSource"]
+        .every(
+          (key) =>
+            value[key] === undefined || typeof value[key] === "string",
+        ) &&
+      (value.retrievalTranslationFailed === undefined ||
+        typeof value.retrievalTranslationFailed === "boolean"))
+  );
+}
+
+function hasLanguageMeta(value) {
+  return (
+    isRecord(value) &&
+    [
+      "questionLanguage",
+      "transcriptLanguage",
+      "transcriptOriginalLanguage",
+      "transcriptSource",
+      "retrievalTranslationFailed",
+    ].some((key) => value[key] !== undefined)
+  );
+}
+
+function sanitizeLanguageMeta(value) {
+  return Object.fromEntries(
+    [
+      "questionLanguage",
+      "transcriptLanguage",
+      "transcriptOriginalLanguage",
+      "transcriptSource",
+      "retrievalTranslationFailed",
+    ]
+      .filter((key) => value[key] !== undefined)
+      .map((key) => [key, value[key]]),
+  );
+}
+
 function isSafeUrl(value) {
   if (value === "") return true;
   try {
@@ -108,11 +149,14 @@ export function isComparison(value) {
       video.missing.every((item) => typeof item === "string") &&
       (video.error === null ||
         (isRecord(video.error) && typeof video.error.message === "string")) &&
-      (video.gap === undefined || video.gap === null || isGapCheck(video.gap)),
+      (video.gap === undefined || video.gap === null || isGapCheck(video.gap)) &&
+      isLanguageMeta(video.meta),
   );
   return (
     rankingIsValid &&
-    (value.agreement === null || isAgreement(value.agreement, value.ranking))
+    (value.agreement === null || isAgreement(value.agreement, value.ranking)) &&
+    (value.questionLanguage === undefined ||
+      typeof value.questionLanguage === "string")
   );
 }
 
@@ -164,6 +208,7 @@ export function validateEntry(entry) {
     ) ||
     !Array.isArray(entry.missing) ||
     !entry.missing.every((item) => typeof item === "string") ||
+    !isLanguageMeta(entry.meta) ||
     (entry.gap !== undefined && entry.gap !== null && !isGapCheck(entry.gap)) ||
     (entry.source === "compare" && !isComparison(entry.comparison)) ||
     (entry.source !== "compare" && entry.comparison !== undefined)
@@ -191,6 +236,9 @@ function sanitizeEntry(entry) {
   if (HISTORY_SOURCES.has(entry.source)) {
     sanitized.source = entry.source;
   }
+  if (isLanguageMeta(entry.meta) && hasLanguageMeta(entry.meta)) {
+    sanitized.meta = sanitizeLanguageMeta(entry.meta);
+  }
   if (isGapCheck(entry.gap)) sanitized.gap = entry.gap;
   if (entry.source === "compare") {
     sanitized.comparison = {
@@ -208,8 +256,14 @@ function sanitizeEntry(entry) {
         missing: [...video.missing],
         error: video.error,
         ...(isGapCheck(video.gap) ? { gap: video.gap } : {}),
+        ...(isLanguageMeta(video.meta) && hasLanguageMeta(video.meta)
+          ? { meta: sanitizeLanguageMeta(video.meta) }
+          : {}),
       })),
       agreement: entry.comparison.agreement,
+      ...(typeof entry.comparison.questionLanguage === "string"
+        ? { questionLanguage: entry.comparison.questionLanguage }
+        : {}),
     };
   }
   return sanitized;

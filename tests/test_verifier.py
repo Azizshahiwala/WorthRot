@@ -101,3 +101,22 @@ def test_fact_timestamp_falls_back_to_window_start_without_segments():
     assert verified == [
         {"text": "A whetstone sharpens a knife.", "timestamp": "00:10"}
     ]
+
+
+def test_quote_normalization_handles_nfkc_and_invisible_marks_but_keeps_joiners():
+    window_text = "Cafe\u0301, full-width ＡＢＣ, and क्\u200dष."
+    quote = "CAFÉ, full-width ABC, and क्\u200dष."
+    windows = [
+        TranscriptWindow(
+            0,
+            20,
+            f"\ufeff{window_text[:4]}\u200b{window_text[4:]}",
+        )
+    ]
+
+    verified = verify_facts(
+        [{"f": "Verified text", "t": "00:00", "q": quote}],
+        windows,
+    )
+
+    assert verified == [{"text": "Verified text", "timestamp": "00:00"}]

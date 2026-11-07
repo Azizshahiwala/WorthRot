@@ -48,25 +48,49 @@ class AnalysisCache:
         finally:
             connection.close()
 
-    def get_transcript(self, video_id: str) -> TranscriptDocument | None:
+    def get_transcript(
+        self, video_id: str, question_language: str = "en"
+    ) -> TranscriptDocument | None:
         try:
             with self._connect() as connection:
                 row = connection.execute(
                     "SELECT transcript_json FROM transcripts WHERE video_id = ?",
-                    (video_id,),
+                    (f"{video_id}:{question_language}",),
                 ).fetchone()
+                if row is None and question_language == "en":
+                    row = connection.execute(
+                        "SELECT transcript_json FROM transcripts WHERE video_id = ?",
+                        (video_id,),
+                    ).fetchone()
             if row is None:
                 return None
             data = json.loads(row[0])
+            segment_data = data.get("segments", []) if isinstance(data, dict) else data
             segments = [
                 TranscriptSegment(
                     start=float(segment["start"]),
                     duration=float(segment["duration"]),
                     text=str(segment["text"]),
                 )
-                for segment in data
+                for segment in segment_data
             ]
-            return TranscriptDocument(segments=segments)
+            return TranscriptDocument(
+                segments=segments,
+                language_code=str(data.get("language_code", "und"))
+                if isinstance(data, dict)
+                else "und",
+                source=str(data.get("source", "auto"))
+                if isinstance(data, dict)
+                else "auto",
+                original_language_code=str(
+                    data.get(
+                        "original_language_code",
+                        data.get("language_code", "und"),
+                    )
+                )
+                if isinstance(data, dict)
+                else "und",
+            )
         except (
             OSError,
             sqlite3.Error,
@@ -77,16 +101,26 @@ class AnalysisCache:
         ) as error:
             raise CacheError() from error
 
-    def set_transcript(self, video_id: str, transcript: TranscriptDocument) -> None:
+    def set_transcript(
+        self,
+        video_id: str,
+        transcript: TranscriptDocument,
+        question_language: str = "en",
+    ) -> None:
         payload = json.dumps(
-            [
-                {
-                    "start": segment.start,
-                    "duration": segment.duration,
-                    "text": segment.text,
-                }
-                for segment in transcript.segments
-            ],
+            {
+                "segments": [
+                    {
+                        "start": segment.start,
+                        "duration": segment.duration,
+                        "text": segment.text,
+                    }
+                    for segment in transcript.segments
+                ],
+                "language_code": transcript.language_code,
+                "source": transcript.source,
+                "original_language_code": transcript.original_language_code,
+            },
             ensure_ascii=False,
         )
         try:
@@ -98,7 +132,7 @@ class AnalysisCache:
                     ON CONFLICT(video_id) DO UPDATE SET
                         transcript_json = excluded.transcript_json
                     """,
-                    (video_id, payload),
+                    (f"{video_id}:{question_language}", payload),
                 )
                 connection.commit()
         except (OSError, sqlite3.Error) as error:

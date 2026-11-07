@@ -28,7 +28,9 @@
   --color-pattern: #d9cfba;
   --color-overlay: #1c1b1933;
   --color-transparent: transparent;
-  --font-sans: "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-sans: "Trebuchet MS", "Segoe UI", "Noto Sans", "Noto Sans Devanagari",
+    "Noto Sans Gujarati", "Noto Sans Arabic", "Noto Sans CJK SC",
+    "Noto Sans CJK JP", sans-serif;
   --font-display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --text-xs: 0.75rem;

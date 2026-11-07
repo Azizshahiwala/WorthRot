@@ -9,6 +9,7 @@ from backend.rate_limit import limited
 from backend.services.agreement import build_agreement
 from backend.services.config import Settings
 from backend.services.errors import ConfigurationError, InvalidInputError
+from backend.services.language import detect_language
 from backend.services.pipeline import analyze_video
 from backend.services.ranker import best_video_id, rank_results
 from backend.services.transcript import extract_video_id
@@ -28,6 +29,11 @@ def _failure(video_id: str, message: str) -> VideoResult:
             "cached": False,
             "tokens_in": 0,
             "tokens_out": 0,
+            "questionLanguage": "und",
+            "transcriptLanguage": "und",
+            "transcriptOriginalLanguage": "und",
+            "transcriptSource": "auto",
+            "retrievalTranslationFailed": False,
         },
         "coverage": "none",
         "verified_fact_count": 0,
@@ -41,17 +47,27 @@ def _run_video(question: str, url: str) -> VideoResult:
 
 def _public_video_result(result: VideoResult) -> dict:
     error = result.get("error")
+    meta = {
+        "cached": result["meta"]["cached"],
+        "tokens_in": result["meta"]["tokens_in"],
+        "tokens_out": result["meta"]["tokens_out"],
+    }
+    for key in (
+        "questionLanguage",
+        "transcriptLanguage",
+        "transcriptOriginalLanguage",
+        "transcriptSource",
+        "retrievalTranslationFailed",
+    ):
+        if key in result["meta"]:
+            meta[key] = result["meta"][key]
     return {
         "verdict": result["verdict"],
         "facts": result["facts"],
         "missing": result["missing"],
         "gap": result.get("gap"),
         "error": {"message": error} if error else None,
-        "meta": {
-            "cached": result["meta"]["cached"],
-            "tokens_in": result["meta"]["tokens_in"],
-            "tokens_out": result["meta"]["tokens_out"],
-        },
+        "meta": meta,
     }
 
 
@@ -158,6 +174,7 @@ def compare() -> Response | tuple[Response, int]:
                 question.strip(),
                 ranked_results,
                 timeout_seconds=min(10, timeout_seconds),
+                output_language=detect_language(question.strip()),
             )
         except Exception:
             logger.exception("Unexpected error while comparing verified facts.")
@@ -173,6 +190,7 @@ def compare() -> Response | tuple[Response, int]:
     return jsonify(
         {
             "question": question.strip(),
+            "questionLanguage": detect_language(question.strip()),
             "best": best_video_id(ranked_results),
             "ranking": ranking,
             "agreement": agreement,

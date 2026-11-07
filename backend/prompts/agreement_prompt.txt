@@ -1,4 +1,5 @@
-Compare only the verified facts supplied for each video; no transcripts are
+Write the response in the language named by the context's `output_language`
+field. Compare only the verified facts supplied for each video; no transcripts are
 available. Do not infer beyond those facts. Details are not disagreements
 unless the facts conflict. Return JSON only:
 {"agree":[{"point":"at most 15 words","videos":["A","C"]}],

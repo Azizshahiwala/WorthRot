@@ -12,6 +12,9 @@ class TranscriptSegment:
 @dataclass(frozen=True)
 class TranscriptDocument:
     segments: list[TranscriptSegment]
+    language_code: str = "und"
+    source: str = "manual"
+    original_language_code: str = "und"
 
     @property
     def duration_seconds(self) -> float:
@@ -46,6 +49,11 @@ class AnalysisMeta(TypedDict):
     cached: bool
     tokens_in: int
     tokens_out: int
+    questionLanguage: str
+    transcriptLanguage: str
+    transcriptOriginalLanguage: str
+    transcriptSource: str
+    retrievalTranslationFailed: bool
 
 
 class GapPart(TypedDict):
@@ -78,6 +86,10 @@ class MediaMeta(TypedDict):
     tokens_in: int
     tokens_out: int
     frames_sent: int
+    questionLanguage: str
+    transcriptLanguage: str
+    transcriptOriginalLanguage: str
+    transcriptSource: str
 
 
 class MediaAnalysisResponse(TypedDict):

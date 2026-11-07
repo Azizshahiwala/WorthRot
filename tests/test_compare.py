@@ -179,7 +179,8 @@ def test_repeated_compare_uses_cached_result_without_another_llm_call(
     )
     model_calls = []
     monkeypatch.setattr(
-        "backend.services.analyzer.fetch_transcript", lambda video_id: transcript
+        "backend.services.analyzer.fetch_transcript",
+        lambda video_id, question_language: transcript,
     )
 
     def extract(settings, context):

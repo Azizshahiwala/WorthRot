@@ -78,6 +78,7 @@ export default function HistoryItem({ entry, onDelete }) {
               <AgreementBlock
                 agreement={entry.comparison.agreement}
                 ranking={entry.comparison.ranking}
+                language={entry.comparison.questionLanguage}
               />
               <CompareResultList ranking={entry.comparison.ranking} />
             </>
@@ -88,6 +89,7 @@ export default function HistoryItem({ entry, onDelete }) {
                 facts: entry.facts,
                 missing: entry.missing,
                 gap: entry.gap,
+                meta: entry.meta,
               }}
             />
           )}

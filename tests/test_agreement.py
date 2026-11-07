@@ -110,6 +110,7 @@ def test_agreement_filters_unknown_labels_and_records_usage(monkeypatch, tmp_pat
         "tokens_out": 8,
     }
     assert observed["context"]["videos"][0]["label"] == "A"
+    assert observed["context"]["output_language"] == "English (en)"
     assert "transcript" not in observed["context"]
     assert observed["kwargs"] == {
         "timeout_seconds": 4,

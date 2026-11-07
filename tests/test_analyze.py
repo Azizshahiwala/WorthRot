@@ -28,7 +28,7 @@ def test_analyze_returns_verified_facts_and_deep_links(monkeypatch, tmp_path):
     transcript_calls = []
     model_calls = []
 
-    def fetch(video_id):
+    def fetch(video_id, question_language):
         transcript_calls.append(video_id)
         return load_transcript()
 
@@ -85,6 +85,11 @@ def test_analyze_returns_verified_facts_and_deep_links(monkeypatch, tmp_path):
         "cached": False,
         "tokens_in": 80,
         "tokens_out": 24,
+        "questionLanguage": "en",
+        "transcriptLanguage": "en",
+        "transcriptOriginalLanguage": "en",
+        "transcriptSource": "manual",
+        "retrievalTranslationFailed": False,
     }
     assert result["gap"]["covered"] == 2
     assert result["gap"]["total"] == 3
@@ -106,7 +111,7 @@ def test_video_link_leads_fact_timestamp_by_two_seconds(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         "backend.services.analyzer.fetch_transcript",
-        lambda video_id: TranscriptDocument(
+        lambda video_id, question_language: TranscriptDocument(
             segments=[
                 TranscriptSegment(10, 2, "Use a whetstone to sharpen a knife.")
             ]
@@ -139,6 +144,123 @@ def test_video_link_leads_fact_timestamp_by_two_seconds(monkeypatch, tmp_path):
     fact = response.get_json()["facts"][0]
     assert fact["timestamp"] == "00:10"
     assert fact["url"].endswith("&t=8")
+
+
+def test_cross_language_question_is_translated_only_for_retrieval(
+    monkeypatch, tmp_path
+):
+    client = prepare_app(monkeypatch, tmp_path)
+    monkeypatch.setenv("SHORT_TRANSCRIPT_TOKENS", "1")
+    transcript = TranscriptDocument(
+        [
+            TranscriptSegment(
+                12,
+                5,
+                "Use a whetstone to sharpen a knife. Keep the blade steady.",
+            )
+        ],
+        language_code="en",
+        source="auto",
+        original_language_code="en",
+    )
+    translation_calls = []
+    analysis_contexts = []
+
+    def translate(settings, context, timeout_seconds, prompt_filename):
+        translation_calls.append((context, prompt_filename))
+        return "How do I sharpen a knife?", 9, 4
+
+    def extract(settings, context):
+        analysis_contexts.append(context)
+        return {
+            "coverage": "full",
+            "facts": [
+                {
+                    "f": "Una piedra de afilar afila un cuchillo.",
+                    "t": "00:12",
+                    "q": "Use a whetstone to sharpen a knife.",
+                }
+            ],
+            "missing": [],
+            "parts": [],
+            "tokens_in": 10,
+            "tokens_out": 5,
+        }
+
+    monkeypatch.setattr(
+        "backend.services.analyzer.fetch_transcript",
+        lambda video_id, question_language: transcript,
+    )
+    monkeypatch.setattr("backend.services.analyzer._request_facts", translate)
+    monkeypatch.setattr("backend.services.analyzer.extract_facts", extract)
+
+    response = client.post(
+        "/analyze",
+        json={"question": "¿Cómo se afila un cuchillo?", "urls": [VIDEO_URL]},
+    )
+
+    assert response.status_code == 200
+    result = response.get_json()
+    assert translation_calls[0][1] == "translate_prompt.txt"
+    assert "Target language: English (en)" in translation_calls[0][0]
+    assert "Answer language: Spanish (es)" in analysis_contexts[0]
+    assert result["meta"]["questionLanguage"] == "es"
+    assert result["meta"]["transcriptLanguage"] == "en"
+    assert result["meta"]["tokens_in"] == 19
+    assert result["meta"]["tokens_out"] == 9
+
+
+def test_failed_cross_language_translation_uses_best_effort_windows(
+    monkeypatch, tmp_path
+):
+    client = prepare_app(monkeypatch, tmp_path)
+    monkeypatch.setenv("SHORT_TRANSCRIPT_TOKENS", "1")
+    transcript = TranscriptDocument(
+        [
+            TranscriptSegment(
+                12,
+                5,
+                "Use a whetstone to sharpen a knife. Keep the blade steady.",
+            )
+        ],
+        language_code="en",
+        source="auto",
+        original_language_code="en",
+    )
+    analysis_contexts = []
+
+    def fail_translation(*_args, **_kwargs):
+        raise LLMError("translation unavailable")
+
+    def extract(settings, context):
+        analysis_contexts.append(context)
+        return {
+            "coverage": "none",
+            "facts": [],
+            "missing": [],
+            "parts": [],
+            "tokens_in": 10,
+            "tokens_out": 2,
+        }
+
+    monkeypatch.setattr(
+        "backend.services.analyzer.fetch_transcript",
+        lambda video_id, question_language: transcript,
+    )
+    monkeypatch.setattr(
+        "backend.services.analyzer._request_facts", fail_translation
+    )
+    monkeypatch.setattr("backend.services.analyzer.extract_facts", extract)
+
+    response = client.post(
+        "/analyze",
+        json={"question": "¿Cómo se afila un cuchillo?", "urls": [VIDEO_URL]},
+    )
+
+    assert response.status_code == 200
+    result = response.get_json()
+    assert result["meta"]["retrievalTranslationFailed"] is True
+    assert "whetstone" in analysis_contexts[0]
 
 
 def test_timestamped_paste_transcript_uses_same_fact_pipeline(monkeypatch, tmp_path):
@@ -237,7 +359,7 @@ def test_invalid_url_and_multiple_videos_are_rejected(monkeypatch, tmp_path):
 def test_missing_captions_returns_paste_transcript_guidance(monkeypatch, tmp_path):
     client = prepare_app(monkeypatch, tmp_path)
 
-    def fetch(video_id):
+    def fetch(video_id, question_language):
         raise TranscriptUnavailableError("No captions. Paste a transcript.")
 
     monkeypatch.setattr("backend.services.analyzer.fetch_transcript", fetch)
@@ -264,7 +386,7 @@ def test_video_over_limit_is_rejected(monkeypatch, tmp_path):
     monkeypatch.setenv("MAX_VIDEO_MINUTES", "1")
     monkeypatch.setattr(
         "backend.services.analyzer.fetch_transcript",
-        lambda video_id: TranscriptDocument(
+        lambda video_id, question_language: TranscriptDocument(
             segments=[TranscriptSegment(61, 1, "A long video caption.")]
         ),
     )
@@ -281,7 +403,8 @@ def test_video_over_limit_is_rejected(monkeypatch, tmp_path):
 def test_llm_failure_is_returned_as_friendly_error(monkeypatch, tmp_path):
     client = prepare_app(monkeypatch, tmp_path)
     monkeypatch.setattr(
-        "backend.services.analyzer.fetch_transcript", lambda video_id: load_transcript()
+        "backend.services.analyzer.fetch_transcript",
+        lambda video_id, question_language: load_transcript(),
     )
 
     def fail(settings, context):
@@ -303,7 +426,8 @@ def test_zero_score_skips_llm_and_returns_rot(monkeypatch, tmp_path):
     client = prepare_app(monkeypatch, tmp_path)
     monkeypatch.setenv("SHORT_TRANSCRIPT_TOKENS", "1")
     monkeypatch.setattr(
-        "backend.services.analyzer.fetch_transcript", lambda video_id: load_transcript()
+        "backend.services.analyzer.fetch_transcript",
+        lambda video_id, question_language: load_transcript(),
     )
     model_calls = []
     monkeypatch.setattr(

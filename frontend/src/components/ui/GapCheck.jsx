@@ -4,7 +4,7 @@ const partLabels = {
   missing: ["❌", "Missing"],
 };
 
-export default function GapCheck({ gap }) {
+export default function GapCheck({ gap, language }) {
   if (!gap || !Array.isArray(gap.parts) || gap.parts.length === 0) return null;
 
   return (
@@ -16,7 +16,7 @@ export default function GapCheck({ gap }) {
         {gap.parts.map((part, index) => {
           const [symbol, label] = partLabels[part.status] || partLabels.missing;
           return (
-            <li key={`${part.text}-${index}`}>
+            <li key={`${part.text}-${index}`} lang={language || undefined} dir="auto">
               <span aria-hidden="true">{symbol}</span>{" "}
               <strong>{label}:</strong> {part.text}
             </li>

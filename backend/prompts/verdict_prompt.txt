@@ -1,4 +1,7 @@
 Extract only facts supported by the transcript that answer the question.
+Write facts (`f`), missing items, and question parts in the requested answer
+language. Copy quotes (`q`) exactly from the transcript in its original
+language and script. Never translate or normalize the quote.
 Return JSON only with this shape:
 {"coverage":"full|partial|none","facts":[{"f":"fact, at most 15 words","t":"mm:ss","q":"exact quote, at most 12 words"}],"missing":["item, at most 8 words"],"parts":[{"p":"question part, at most 8 words","s":"covered|partial|missing"}]}
-Use at most 5 facts, 3 missing items, and 4 question parts. Split the question into 2–4 short parts. Judge each part only from the supplied transcript windows; "covered" requires supporting text in a window. Use each window's displayed timestamp exactly; do not infer a more precise time. Quotes must be exact words from that window. If the transcript does not answer the question, use coverage "none" and an empty facts array. No introductions, explanations, opinions, or markdown.
+Use at most 5 facts, 3 missing items, and 4 question parts. Split the question into 2–4 short parts. Judge each part only from the supplied transcript windows; "covered" requires supporting text in a window. Use each window's displayed timestamp exactly; do not infer a more precise time. Quotes must be exact text from that window. If the transcript does not answer the question, use coverage "none" and an empty facts array. No introductions, explanations, opinions, or markdown.

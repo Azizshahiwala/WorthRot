@@ -101,6 +101,15 @@ export function HistoryProvider({ children }) {
           : [],
         missing: Array.isArray(result.missing) ? [...result.missing] : [],
       };
+      if (typeof result.meta?.questionLanguage === "string") {
+        entry.meta = {
+          questionLanguage: result.meta.questionLanguage,
+          transcriptLanguage: result.meta.transcriptLanguage,
+          transcriptOriginalLanguage: result.meta.transcriptOriginalLanguage,
+          transcriptSource: result.meta.transcriptSource,
+          retrievalTranslationFailed: result.meta.retrievalTranslationFailed,
+        };
+      }
       if (isGapCheck(result.gap)) entry.gap = result.gap;
       if (entrySource === "compare" && isComparison(result.comparison)) {
         entry.comparison = result.comparison;

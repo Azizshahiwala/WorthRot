@@ -1,14 +1,14 @@
 import re
 
 from backend.models import TranscriptWindow
+from backend.services.language import normalize_quote
 from backend.services.verdict import ModelFact
 
-WHITESPACE = re.compile(r"\s+")
 TIMESTAMP_PATTERN = re.compile(r"^(?:(\d+):)?([0-5]?\d):([0-5]\d)$")
 
 
 def _normalize(value: str) -> str:
-    return WHITESPACE.sub(" ", value.casefold()).strip()
+    return normalize_quote(value)
 
 
 def _timestamp_seconds(value: str) -> int | None:

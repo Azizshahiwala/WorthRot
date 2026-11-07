@@ -103,6 +103,24 @@ def test_validate_media_file_enforces_duration(tmp_path, monkeypatch):
         validate.validate_media_file(path, make_settings(tmp_path), 1)
 
 
+def test_subtitle_stream_selection_prefers_question_language():
+    streams = [
+        {"index": 2, "codec_type": "subtitle", "tags": {"language": "spa"}},
+        {"index": 5, "codec_type": "subtitle", "tags": {"language": "hin"}},
+    ]
+
+    assert validate.subtitle_stream_index(streams, "hi") == 5
+    assert validate.subtitle_stream_language(streams, 5) == "hi"
+    assert validate.subtitle_stream_index(streams, "fr") == 2
+
+
+def test_frame_prompt_includes_answer_language():
+    from backend.services.media.vision import SYSTEM_PROMPT
+
+    assert "Read on-screen text in any language" in SYSTEM_PROMPT
+    assert "requested answer language" in SYSTEM_PROMPT
+
+
 def test_ffmpeg_runner_uses_bounded_safe_arguments(tmp_path, monkeypatch):
     calls = {}
     monkeypatch.setattr(ffmpeg_runner, "resolve_ffmpeg", lambda: "C:\\tools\\ffmpeg.exe")
@@ -149,7 +167,7 @@ def test_probe_media_fallback_preserves_stream_indexes(monkeypatch, tmp_path):
             stderr=(
                 b"Duration: 00:00:12.50, start: 0.000000\n"
                 b"Stream #0:0: Video: h264\n"
-                b"Stream #0:2(eng): Subtitle: mov_text\n"
+                b"Stream #0:2(hin): Subtitle: mov_text\n"
             ),
         ),
     )
@@ -157,7 +175,7 @@ def test_probe_media_fallback_preserves_stream_indexes(monkeypatch, tmp_path):
     assert probe["duration"] == 12.5
     assert probe["streams"] == [
         {"index": 0, "codec_type": "video"},
-        {"index": 2, "codec_type": "subtitle"},
+        {"index": 2, "codec_type": "subtitle", "tags": {"language": "hin"}},
     ]
 
 
@@ -332,7 +350,8 @@ def test_stt_uses_gemini_key_and_preserves_valid_segment_timestamps(
                                                 "start_seconds": 12,
                                                 "text": "Outside audio",
                                             },
-                                        ]
+                                        ],
+                                        "language_code": "en",
                                     }
                                 )
                             }
@@ -343,7 +362,9 @@ def test_stt_uses_gemini_key_and_preserves_valid_segment_timestamps(
         }
     )
     timed = stt.transcribe_audio(audio_path, duration_seconds=10, timeout=12)
-    assert timed == stt.Transcription("[00:02] The answer", timed=True)
+    assert timed == stt.Transcription(
+        "[00:02] The answer", timed=True, language_code="en"
+    )
     assert observed["url"] == stt.GEMINI_API_URL
     assert observed["timeout"] == 12
     assert observed["api_key"] == "test-gemini-key"
@@ -387,6 +408,7 @@ def test_stt_falls_back_to_elevenlabs_on_gemini_rate_limit(tmp_path, monkeypatch
             return json.dumps(
                 {
                     "text": "Hello world! Next sentence",
+                    "language_code": "en",
                     "words": [
                         {
                             "text": "Hello",
@@ -435,7 +457,9 @@ def test_stt_falls_back_to_elevenlabs_on_gemini_rate_limit(tmp_path, monkeypatch
     transcript = stt.transcribe_audio(audio_path, duration_seconds=10, timeout=7)
 
     assert transcript == stt.Transcription(
-        "[00:00] Hello world!\n[00:02] Next sentence", timed=True
+        "[00:00] Hello world!\n[00:02] Next sentence",
+        timed=True,
+        language_code="en",
     )
     assert observed["urls"] == [stt.GEMINI_API_URL, stt.ELEVENLABS_API_URL]
     assert observed["timeout"] == 7

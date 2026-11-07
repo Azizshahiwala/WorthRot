@@ -38,9 +38,23 @@ only the top matching context to the configured model provider. Transcripts unde
 `SHORT_TRANSCRIPT_TOKENS` skip keyword retrieval, subject to the context cap.
 The cap includes the question and formatted transcript windows.
 
-The model returns compact JSON facts and internal source quotes. The verifier
-requires each quote to match its exact timestamped window after case and
-whitespace normalization. A verified fact uses the timestamp of the caption
+The question and transcript language are detected with lightweight script and
+stopword heuristics, preferring the caption provider's language code when
+available. Caption selection prefers manual captions in the question language,
+then other manual captions, auto-generated captions, and translatable tracks.
+Each result reports question language, selected/original transcript language,
+and caption source. For long transcripts whose language differs from the
+question, a retrieval-only model call translates the question; if that call
+fails, analysis continues with the original question and best-effort windows
+and records `retrievalTranslationFailed`. Short transcripts skip this
+translation. Translated questions are never used as evidence.
+
+The model returns compact JSON facts and internal source quotes. It writes
+facts and missing items in the question language while quotes remain in the
+transcript's original language. The verifier applies Unicode normalization,
+case folding, whitespace normalization, and removal of selected invisible
+controls, while preserving ZWJ/ZWNJ, then requires each quote to match its
+timestamped window. A verified fact uses the timestamp of the caption
 segment containing its quote, falling back to the window start when segment
 details are unavailable. Linked video playback starts two seconds before that
 displayed fact timestamp. Existing cached results retain their prior
@@ -107,13 +121,16 @@ sequenceDiagram
         Cache-->>API: verified facts and token usage
     else transcript needs analysis
         opt URL supplied and transcript cache miss
-            API->>YT: fetch English captions
+            API->>YT: select captions by question language and track type
             YT-->>API: timestamped caption segments
             API->>Cache: cache transcript by video ID
         end
         API->>Rank: clean, window, and rank transcript
         Rank-->>API: matching windows within token cap
         alt matching windows found
+            opt long transcript in a different language
+                API->>LLM: translate question for retrieval only
+            end
             API->>LLM: question and selected windows
             LLM-->>API: compact JSON facts, quotes, and usage
             API->>API: verify quotes and map verdict in code
@@ -208,7 +225,12 @@ sequenceDiagram
       "video_id": "string",
       "cached": false,
       "tokens_in": 0,
-      "tokens_out": 0
+      "tokens_out": 0,
+      "questionLanguage": "en",
+      "transcriptLanguage": "hi",
+      "transcriptOriginalLanguage": "hi",
+      "transcriptSource": "auto",
+      "retrievalTranslationFailed": false
     }
   }
   ```
@@ -230,6 +252,7 @@ sequenceDiagram
   ```json
   {
     "question": "string",
+    "questionLanguage": "en",
     "best": "video_id or null",
     "ranking": [
       {
@@ -246,7 +269,16 @@ sequenceDiagram
           "parts": [{ "text": "question part", "status": "covered" }]
         },
         "error": null,
-        "meta": { "cached": false, "tokens_in": 0, "tokens_out": 0 }
+        "meta": {
+          "cached": false,
+          "tokens_in": 0,
+          "tokens_out": 0,
+          "questionLanguage": "en",
+          "transcriptLanguage": "hi",
+          "transcriptOriginalLanguage": "hi",
+          "transcriptSource": "auto",
+          "retrievalTranslationFailed": false
+        }
       }
     ],
     "agreement": {
@@ -289,7 +321,15 @@ sequenceDiagram
       "label": "Partly covered",
       "parts": [{ "text": "question part", "status": "covered" }]
     },
-    "meta": { "tokens_in": 0, "tokens_out": 0, "frames_sent": 0 }
+    "meta": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "frames_sent": 0,
+      "questionLanguage": "en",
+      "transcriptLanguage": "es",
+      "transcriptOriginalLanguage": "es",
+      "transcriptSource": "speech"
+    }
   }
   ```
 
@@ -375,5 +415,8 @@ History is per browser and device; clearing site data removes it.
   persisted outside the existing `DATA_DIR` cache for YouTube analysis.
 - Real caption retrieval may fail in hosted environments due to YouTube IP
   blocking; paste a timestamped transcript as the fallback.
+- Language detection is heuristic when a provider does not supply a language
+  code. Metadata describes the selected transcript, not a guarantee of
+  comprehensive support for every language.
 - Embarko ffmpeg availability, its proxy request timeout, BazaarLink STT
   support, and the configured vision model's image limits remain unverified.
