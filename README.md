@@ -24,7 +24,8 @@ verified against timestamped evidence.
 - Compare rankings and verified cross-video agreement
 - MP4/MP3 analysis using subtitles, speech transcription, or sampled frames
 - Question gap checks and on-device History
-- Per-network daily request limits
+- Per-network request limits (5 requests per feature with a 5-hour cooldown window)
+- Cloud deployment on Embarko (`https://worthrot.embarko.app`)
 
 ## Requirements
 
@@ -101,6 +102,17 @@ python main.py
 ```
 
 Flask binds to `0.0.0.0` and reads its port from `PORT` (default `5000`).
+
+## Deployment (Embarko)
+
+WorthRot is configured for deployment to [Embarko](https://embarko.ai) (cloud hosting for small apps):
+
+- **Live URL**: [https://worthrot.embarko.app](https://worthrot.embarko.app)
+- **Manifest**: [embarko.json](embarko.json) defines the app configuration (`appId: cmw4lahk01ad0w56w73nx8cij`).
+- **Build & Packaging**: The frontend Vite build (`frontend/dist/`) is served directly by Flask via `app.py`.
+- **Environment & Storage**: `DATA_DIR` is set to persistent volume storage `/data` (for SQLite rate-limit and analysis caching).
+- **Rate Limiting**: Request limits are enforced at 5 requests per feature (`analyze`, `compare`, `media`) per 5-hour rolling cooldown window.
+- **Provider Settings**: Uses `BAZAARLINK_API_KEY` for LLM analysis, with `MODEL_NAME=qwen/qwen3.7-flash:free` and `LLM_BASE_URL=https://api.bazaarlink.ai/v1`.
 
 ## Tests
 
