@@ -50,7 +50,7 @@ NORMALIZED_STOPWORDS = {
     for language, stopwords in LATIN_STOPWORDS.items()
 }
 LATIN_LANGUAGES = ("en", "es", "fr", "de", "pt")
-WORD_PATTERN = re.compile(r"\w+", re.UNICODE)
+WORD_PATTERN = re.compile(r"[\w\u0900-\u0DFF\u0E00-\u0EFF\u1000-\u109F\u1780-\u17FF\u0600-\u06FF\u0750-\u077F]+", re.UNICODE)
 INVISIBLE_PATTERN = re.compile(
     "[\ufeff\u200b\u200e\u200f\u202a-\u202e\u2060\u2066-\u2069]"
 )

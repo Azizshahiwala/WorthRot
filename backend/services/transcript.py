@@ -98,8 +98,9 @@ def parse_pasted_transcript(text: str) -> TranscriptDocument:
 
 def _transcript_candidates(transcripts, question_language: str):
     question_code = language_code(question_language)
-    manual = list(transcripts.manually_created_transcripts.values())
-    generated = list(transcripts.generated_transcripts.values())
+    tracks = list(transcripts)  # TranscriptList is iterable (public API)
+    manual = [track for track in tracks if not track.is_generated]
+    generated = [track for track in tracks if track.is_generated]
 
     candidates = []
     candidates.extend(

@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from pathlib import Path
 from typing import TypedDict
 from urllib.error import HTTPError, URLError
@@ -9,7 +10,6 @@ from urllib.request import Request, urlopen
 from backend.models import GapCheck, GapPart
 from backend.services.config import DEFAULT_LLM_BASE_URL, Settings
 from backend.services.errors import ConfigurationError, LLMError
-from backend.services.language import language_name, word_count
 
 MAX_FACTS = 5
 MAX_MISSING_ITEMS = 3
@@ -20,6 +20,26 @@ WORTH_IT_MINIMUM_FACTS = 2
 SKIM_MINIMUM_FACTS = 1
 FENCE_PATTERN = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
 PROMPT_VERSION = "multilingual-v1"
+MAX_RETRIES = 2
+RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
+MAX_RETRY_DELAY_SECONDS = 10
+
+
+def _can_retry(
+    attempt: int, started: float, budget: float, retry_after: str | None
+) -> bool:
+    """Sleep and return True if another attempt fits inside the time budget."""
+    if attempt >= MAX_RETRIES:
+        return False
+    try:
+        delay = float(retry_after) if retry_after else 2.0 * (attempt + 1)
+    except ValueError:
+        delay = 2.0 * (attempt + 1)
+    delay = min(max(delay, 1.0), MAX_RETRY_DELAY_SECONDS)
+    if time.monotonic() - started + delay >= budget:
+        return False
+    time.sleep(delay)
+    return True
 
 
 class ModelFact(TypedDict):
@@ -37,11 +57,11 @@ class Extraction(TypedDict):
     tokens_out: int
 
 
-def _word_count(value: str, language: str = "und") -> int:
-    return word_count(value, language)
+def _word_count(value: str) -> int:
+    return len(value.split())
 
 
-def parse_gap_parts(value: object, language: str = "und") -> list[GapPart]:
+def parse_gap_parts(value: object) -> list[GapPart]:
     if not isinstance(value, list) or not 2 <= len(value) <= 4:
         return []
     parts: list[GapPart] = []
@@ -52,7 +72,7 @@ def parse_gap_parts(value: object, language: str = "und") -> list[GapPart]:
         if (
             not isinstance(text, str)
             or not text.strip()
-            or _word_count(text, language) > 8
+            or _word_count(text) > 8
             or not isinstance(status, str)
             or status not in {"covered", "partial", "missing"}
         ):
@@ -106,10 +126,7 @@ def _http_error_message(status_code: int) -> str:
             "and access to the configured model."
         ),
         404: "The model provider could not find the configured model. Check MODEL_NAME.",
-        429: (
-            "The model provider rate or usage limit was reached. Check the "
-            "account's limits, then try again."
-        ),
+        429: "The model is busy right now. Please try again in a minute.",
     }
     if status_code in messages:
         return messages[status_code]
@@ -131,7 +148,7 @@ def _parse_json_response(response_text: str) -> object:
         ) from error
 
 
-def parse_model_json(response_text: str, language: str = "und") -> dict:
+def parse_model_json(response_text: str) -> dict:
     data = _parse_json_response(response_text)
     if not isinstance(data, dict):
         raise LLMError("The analysis response couldn't be verified. Please try again.")
@@ -159,8 +176,8 @@ def parse_model_json(response_text: str, language: str = "und") -> dict:
             " ".join(quote.split()),
         )
         if (
-            _word_count(text, language) > MAX_FACT_WORDS
-            or _word_count(quote, language) > MAX_QUOTE_WORDS
+            _word_count(text) > MAX_FACT_WORDS
+            or _word_count(quote) > MAX_QUOTE_WORDS
         ):
             continue
         parsed_facts.append({"f": text, "t": timestamp, "q": quote})
@@ -171,14 +188,14 @@ def parse_model_json(response_text: str, language: str = "und") -> dict:
         if (
             isinstance(item, str)
             and item.strip()
-            and _word_count(item, language) <= MAX_MISSING_WORDS
+            and _word_count(item) <= MAX_MISSING_WORDS
         )
     ][:MAX_MISSING_ITEMS]
     return {
         "coverage": coverage,
         "facts": parsed_facts if coverage != "none" else [],
         "missing": parsed_missing,
-        "parts": parse_gap_parts(data.get("parts"), language),
+        "parts": parse_gap_parts(data.get("parts")),
     }
 
 
@@ -227,17 +244,25 @@ def _request_facts(
         },
         method="POST",
     )
-    try:
-        with urlopen(
-            request, timeout=timeout_seconds if timeout_seconds is not None else 30
-        ) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except HTTPError as error:
-        raise LLMError(_http_error_message(error.code)) from error
-    except (URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError) as error:
-        raise LLMError(
-            "The analysis service is unavailable. Please try again."
-        ) from error
+    attempt_timeout = timeout_seconds if timeout_seconds is not None else 30
+    started = time.monotonic()
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            with urlopen(request, timeout=attempt_timeout) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            break
+        except HTTPError as error:
+            if error.code in RETRYABLE_STATUSES and _can_retry(
+                attempt, started, attempt_timeout, error.headers.get("Retry-After")
+            ):
+                continue
+            raise LLMError(_http_error_message(error.code)) from error
+        except (URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError) as error:
+            if _can_retry(attempt, started, attempt_timeout, None):
+                continue
+            raise LLMError(
+                "The analysis service is unavailable. Please try again."
+            ) from error
 
     if not isinstance(payload, dict):
         raise LLMError(
