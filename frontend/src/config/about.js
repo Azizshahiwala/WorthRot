@@ -65,7 +65,7 @@ export const about = {
     },
   ],
   limits: [
-    "Each feature allows 10 requests per day per network.",
+    "Each feature allows 5 requests per 5 hours.",
     "Works with YouTube videos that have captions.",
     "Results are only as good as the transcript.",
     "Other video platforms are not supported.",
@@ -76,10 +76,10 @@ export const about = {
     "Flask, React, and Bazaarlink's OpenAI-compatible API. " +
     "Hosted on Embarko. Built for the Embarko AI hackathon.",
   author: {
-    name: "", // Fill these in with the project owner's details.
-    role: "",
-    githubUrl: "",
-    projectRepoUrl: "",
+    name: "Aziz shahiwala", // Fill these in with the project owner's details.
+    role: "Student Developer",
+    githubUrl: "https://github.com/Azizshahiwala",
+    projectRepoUrl: "https://github.com/Azizshahiwala/WorthRot/tree/worthrot-deploy",
     githubLabel: "WorthRot on GitHub",
     projectRepoLabel: "WorthRot project repository",
   },

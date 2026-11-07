@@ -6,7 +6,6 @@ describe("about content", () => {
     expect(about).toHaveProperty("hero");
     expect(about).toHaveProperty("steps");
     expect(about).toHaveProperty("principles");
-    expect(about).toHaveProperty("latestChanges");
     expect(about).toHaveProperty("limits");
     expect(about).toHaveProperty("builtWith");
     expect(about).toHaveProperty("author");
@@ -29,10 +28,6 @@ describe("about content", () => {
       ...about.principles.flatMap((principle) => [
         principle.title,
         principle.description,
-      ]),
-      ...about.latestChanges.flatMap((change) => [
-        change.title,
-        change.description,
       ]),
       ...about.limits,
       about.builtWith,
@@ -58,22 +53,13 @@ describe("about content", () => {
       about.principles.find(({ title }) => title === "Private by default")
         .description,
     ).toBe(
-      "No accounts, no cookies. A hashed IP is kept for up to 2 days to enforce the daily limit. Uploaded files are deleted after processing.",
+      "No accounts, no cookies. A hashed IP is kept for up to 10 hours to enforce the rate limit. Uploaded files are deleted after processing.",
     );
     expect(about.limits).toContain(
-      "Each feature allows 10 requests per day per network.",
+      "Each feature allows 5 requests per network, then a 5-hour cooldown.",
     );
     expect(about.limits).toContain(
       "The Other tab accepts MP4 and MP3 files up to a size and length cap.",
-    );
-  });
-
-  it("highlights support for multiple languages in the latest changes", () => {
-    expect(about.latestChanges[0].title).toBe(
-      "Support for multi-languages",
-    );
-    expect(about.latestChanges[0].description).toContain(
-      "verified against the transcript",
     );
   });
 });
