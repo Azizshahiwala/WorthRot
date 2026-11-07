@@ -34,6 +34,13 @@ export default function AboutPage() {
         <PrincipleList principles={about.principles} />
       </AboutSection>
 
+      <AboutSection
+        id="about-latest-changes"
+        title={about.sectionTitles.latestChanges}
+      >
+        <PrincipleList principles={about.latestChanges} />
+      </AboutSection>
+
       <AboutSection id="about-limits" title={about.sectionTitles.limits}>
         <ul className="about-limits-list">
           {about.limits.map((limit) => (

@@ -6,6 +6,7 @@ describe("about content", () => {
     expect(about).toHaveProperty("hero");
     expect(about).toHaveProperty("steps");
     expect(about).toHaveProperty("principles");
+    expect(about).toHaveProperty("latestChanges");
     expect(about).toHaveProperty("limits");
     expect(about).toHaveProperty("builtWith");
     expect(about).toHaveProperty("author");
@@ -28,6 +29,10 @@ describe("about content", () => {
       ...about.principles.flatMap((principle) => [
         principle.title,
         principle.description,
+      ]),
+      ...about.latestChanges.flatMap((change) => [
+        change.title,
+        change.description,
       ]),
       ...about.limits,
       about.builtWith,
@@ -60,6 +65,15 @@ describe("about content", () => {
     );
     expect(about.limits).toContain(
       "The Other tab accepts MP4 and MP3 files up to a size and length cap.",
+    );
+  });
+
+  it("highlights support for multiple languages in the latest changes", () => {
+    expect(about.latestChanges[0].title).toBe(
+      "Support for multi-languages",
+    );
+    expect(about.latestChanges[0].description).toContain(
+      "verified against the transcript",
     );
   });
 });

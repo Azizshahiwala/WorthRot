@@ -6,6 +6,7 @@ export const about = {
   sectionTitles: {
     steps: "How it works",
     principles: "Principles",
+    latestChanges: "Latest changes",
     limits: "Limits",
     builtWith: "Built with",
   },
@@ -44,6 +45,23 @@ export const about = {
       title: "Private by default",
       description:
         "No accounts, no cookies. A hashed IP is kept for up to 2 days to enforce the daily limit. Uploaded files are deleted after processing.",
+    },
+  ],
+  latestChanges: [
+    {
+      title: "Support for multi-languages",
+      description:
+        "Check supported videos in different languages. Answers follow your question, while quotes stay in the original language and are verified against the transcript.",
+    },
+    {
+      title: "Question gap checks",
+      description:
+        "See which parts of your question the verified facts cover and what remains unanswered.",
+    },
+    {
+      title: "Compare agreement",
+      description:
+        "Compare verified facts across videos to see where they agree or differ.",
     },
   ],
   limits: [
