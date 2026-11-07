@@ -1,7 +1,7 @@
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from backend.cache import AnalysisCache, question_hash
-from backend.models import VideoResult, TranscriptDocument
+from backend.models import GapCheck, VideoResult, TranscriptDocument
 from backend.services.chunker import make_windows
 from backend.services.config import Settings
 from backend.services.errors import (
@@ -16,8 +16,10 @@ from backend.services.transcript import (
     fetch_transcript,
     parse_pasted_transcript,
 )
-from backend.services.verdict import extract_facts, map_verdict
+from backend.services.verdict import extract_facts, map_gap, map_verdict
 from backend.services.verifier import verify_facts
+
+LINK_LEAD_IN_SECONDS = 2
 
 
 def _response(
@@ -29,6 +31,7 @@ def _response(
     tokens_out: int = 0,
     cached: bool = False,
     coverage: str = "none",
+    gap: GapCheck | None = None,
 ) -> VideoResult:
     return {
         "verdict": verdict,
@@ -37,6 +40,7 @@ def _response(
             for fact in facts or []
         ],
         "missing": missing or [],
+        "gap": gap,
         "meta": {
             "video_id": video_id,
             "cached": cached,
@@ -55,7 +59,9 @@ def _attach_timestamp_urls(
         if not video_url:
             continue
         minutes, seconds = map(int, fact["timestamp"].split(":")[-2:])
-        timestamp = minutes * 60 + seconds
+        timestamp = max(
+            0, minutes * 60 + seconds - LINK_LEAD_IN_SECONDS
+        )
         parsed = urlparse(video_url)
         query = [
             (key, value)
@@ -188,6 +194,7 @@ def analyze_video(
         tokens_in=extraction["tokens_in"],
         tokens_out=extraction["tokens_out"],
         coverage=extraction["coverage"],
+        gap=map_gap(extraction.get("parts", []), len(facts)),
     )
     if cache and not transcript_text.strip():
         cache.set_result(video_id, normalized_hash, result)

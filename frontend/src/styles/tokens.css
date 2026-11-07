@@ -17,6 +17,7 @@
   --color-rot-bg: #f6d4c9;
   --color-unverified: #343a50;
   --color-unverified-bg: #e0dfd7;
+  --color-evidence-bg: #e8e4d8;
   --color-success: #176641;
   --color-warning: #765000;
   --color-danger: #a72520;
@@ -100,6 +101,7 @@
   --color-rot-bg: #472824;
   --color-unverified: #ddd6c9;
   --color-unverified-bg: #383731;
+  --color-evidence-bg: #34332d;
   --color-success: #9cdda8;
   --color-warning: #f4d477;
   --color-danger: #ff9686;

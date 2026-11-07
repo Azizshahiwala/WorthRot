@@ -18,10 +18,14 @@ and friendly fallback behavior when captions are unavailable.
 ## Decision
 
 Implement a plain-Python analysis pipeline that fetches caption segments,
-cleans and groups them into timestamped windows, ranks windows locally, and
-sends only a bounded context to the configured LLM for compact fact extraction. Verify
-each returned source quote against the exact timestamped window before
-returning the fact. Map coverage and verified-fact counts to verdicts in code.
+cleans and groups them into timestamped windows while retaining the source
+segments, ranks windows locally, and sends only a bounded context to the
+configured LLM for compact fact extraction. Verify each returned source quote
+against the exact timestamped window before returning the fact. Use the
+matching caption segment's start as the fact timestamp, falling back to the
+window start when segment details are unavailable. Video links begin two
+seconds before the displayed timestamp, floored at zero. Map coverage and
+verified-fact counts to verdicts in code.
 
 Return facts, timestamped URLs, missing items, and token/cache metadata.
 Internal quotes, confidence scores, summaries, and explanatory prose are not

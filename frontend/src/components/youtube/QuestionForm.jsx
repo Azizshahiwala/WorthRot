@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import { useAnalysis } from "../../contexts/AnalysisContext.jsx";
 import { useToast } from "../../contexts/ToastContext.jsx";
 import { useRateLimit } from "../../contexts/RateLimitContext.jsx";
@@ -86,7 +87,7 @@ export default function QuestionForm() {
         disabled={isLoading || limitReached}
       >
         {isLoading ? "Checking your video" : "Get the verdict"}
-        {!isLoading && <span aria-hidden="true">→</span>}
+        {!isLoading && <ArrowRight aria-hidden="true" size={20} />}
       </Button>
       <RateLimitNotice feature="analyze" />
       <p className="privacy-note">

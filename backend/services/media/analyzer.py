@@ -2,7 +2,7 @@ import time
 from typing import BinaryIO
 from pathlib import Path
 
-from backend.models import MediaAnalysisResponse
+from backend.models import GapCheck, MediaAnalysisResponse
 from backend.services.config import Settings
 from backend.services.media.audio import extract_audio
 from backend.services.media.errors import MediaError, MediaProviderError, MediaTimeoutError
@@ -19,6 +19,7 @@ from backend.services.media.validate import (
 from backend.services.media.vision import analyze_frames
 from backend.services.media.workdir import media_workdir
 from backend.services.pipeline import analyze_video
+from backend.services.verdict import map_gap
 
 
 def _remaining(deadline: float) -> float:
@@ -40,6 +41,7 @@ def _media_result(
     tokens_in: int = 0,
     tokens_out: int = 0,
     frames_sent: int = 0,
+    gap: GapCheck | None = None,
 ) -> MediaAnalysisResponse:
     return {
         "verdict": verdict,
@@ -49,6 +51,7 @@ def _media_result(
             for fact in facts
         ],
         "missing": missing,
+        "gap": gap,
         "meta": {
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
@@ -69,6 +72,7 @@ def _transcript_result(
             [analyzed["error"]],
             analyzed["meta"]["tokens_in"],
             analyzed["meta"]["tokens_out"],
+            gap=None,
         )
     return _media_result(
         analyzed["verdict"],
@@ -77,6 +81,7 @@ def _transcript_result(
         analyzed["missing"],
         analyzed["meta"]["tokens_in"],
         analyzed["meta"]["tokens_out"],
+        gap=analyzed.get("gap"),
     )
 
 
@@ -214,4 +219,5 @@ def analyze_media_upload(
             frame_result["tokens_in"],
             frame_result["tokens_out"],
             len(frames),
+            map_gap(frame_result.get("parts", []), len(frame_result["facts"])),
         )

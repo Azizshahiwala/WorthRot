@@ -36,3 +36,4 @@ def test_windowing_merges_caption_lines_and_preserves_start_timestamps():
     assert "whetstone" in windows[0].text
     assert "thirty degree angle" in windows[0].text
     assert "pasta water" in windows[1].text
+    assert windows[0].segments[0].text == "Use a whetstone to sharpen a knife."

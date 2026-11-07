@@ -54,6 +54,7 @@ def make_windows(
                 start=window_start,
                 end=max(segment.start + segment.duration for segment in current),
                 text=" ".join(segment.text for segment in current),
+                segments=list(current),
             )
         )
 

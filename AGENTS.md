@@ -86,6 +86,12 @@ Response for the single analyzed video:
   "verdict": "Worth it | Skim | Rot | Can't verify",
   "facts": [{ "text": "string", "timestamp": "mm:ss", "url": "string" }],
   "missing": ["string"],
+  "gap": {
+    "covered": 1,
+    "total": 2,
+    "label": "Partly covered",
+    "parts": [{ "text": "question part", "status": "covered" }]
+  },
   "meta": {
     "video_id": "string",
     "cached": false,
@@ -99,6 +105,8 @@ The internal quote used to verify a fact is not returned. For pasted
 transcripts without a YouTube URL, the fact's `url` is an empty string.
 Errors return a JSON `message`; caption and LLM failures may also include a
 `result` with verdict `Can't verify`.
+`gap` is null when no question parts are available; older cached entries
+without `gap` remain supported.
 `GET /health` returns `{"status": "ok"}`.
 
 `GET /limits` returns each feature's per-network `limit`, `remaining`, and
@@ -116,14 +124,22 @@ MP4/MP3 file. Its response is:
   "source": "subtitles | speech | frames",
   "facts": [{ "text": "string", "timestamp": "mm:ss or null", "url": null }],
   "missing": ["string"],
+  "gap": {
+    "covered": 1,
+    "total": 2,
+    "label": "Partly covered",
+    "parts": [{ "text": "question part", "status": "covered" }]
+  },
   "meta": { "tokens_in": 0, "tokens_out": 0, "frames_sent": 0 }
 }
 ```
 
+The media `gap` may be null when no question parts are available.
 Uploads are validated by content, size, and duration, processed in
 `DATA_DIR/tmp`, and deleted after the request. Successful `/analyze` and
-`/analyze-media` results are saved to browser History as summaries only;
-Compare results are not saved. Never store uploaded media or transcripts.
+`/analyze-media` results and completed Compare summaries are saved to browser
+History. Compare History includes ranked verified facts and agreement only.
+Never store uploaded media or transcripts.
 
 `POST /compare` accepts 2 to `MAX_COMPARE_VIDEOS` (default 3) distinct YouTube
 URLs and one non-empty question:
@@ -176,13 +192,34 @@ URL. Never expose any key to the frontend.
       "verdict": "Worth it | Skim | Rot | Can't verify",
       "facts": [{ "text": "string", "timestamp": "mm:ss", "url": "string" }],
       "missing": ["string"],
+      "gap": {
+        "covered": 1,
+        "total": 2,
+        "label": "Partly covered",
+        "parts": [{ "text": "question part", "status": "covered" }]
+      },
       "error": null,
       "meta": { "cached": false, "tokens_in": 0, "tokens_out": 0 }
     }
   ],
+  "agreement": {
+    "agree": [{ "point": "string", "videos": ["A", "B"] }],
+    "disagree": [{
+      "point": "string",
+      "positions": [
+        {"video": "A", "claim": "string"},
+        {"video": "B", "claim": "string"}
+      ]
+    }],
+    "unanswered": ["string"]
+  },
   "meta": { "tokens_in_total": 0, "tokens_out_total": 0 }
 }
 ```
+
+`agreement` is null when fewer than two videos have verified facts or the
+optional agreement request fails. Compare History stores the ranked verified
+facts and agreement summary.
 
 Do not change this schema without updating `models.py`, the frontend, tests, and `docs/architecture.md` together.
 

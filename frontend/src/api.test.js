@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { analyzeMedia, parseRateLimitHeaders } from "./api.js";
+import { analyzeMedia, compare, parseRateLimitHeaders } from "./api.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -31,6 +31,29 @@ describe("analyzeMedia", () => {
     expect(options.headers).toBeUndefined();
     expect(response.result.verdict).toBe("Can't verify");
     expect(response.rate).toBeNull();
+  });
+});
+
+describe("compare", () => {
+  it("accepts nullable agreement and optional gap fields", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          question: "Question?",
+          best: null,
+          ranking: [],
+          agreement: null,
+          meta: { tokens_in_total: 0, tokens_out_total: 0 },
+        }),
+      }),
+    );
+
+    await expect(compare({ question: "Question?", urls: [] })).resolves.toMatchObject({
+      result: { agreement: null },
+      rate: null,
+    });
   });
 });
 

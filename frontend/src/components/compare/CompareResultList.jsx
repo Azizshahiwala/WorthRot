@@ -28,6 +28,7 @@ export default function CompareResultList({ ranking }) {
                 verdict: video.verdict,
                 facts: video.facts,
                 missing: video.missing,
+                gap: video.gap,
               }}
             />
           )}

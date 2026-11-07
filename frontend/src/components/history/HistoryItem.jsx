@@ -1,7 +1,11 @@
 import { useState } from "react";
+import { X } from "lucide-react";
 import Badge from "../ui/Badge.jsx";
 import Button from "../ui/Button.jsx";
 import FactsPanel from "../youtube/FactsPanel.jsx";
+import AgreementBlock from "../compare/AgreementBlock.jsx";
+import CompareResultList from "../compare/CompareResultList.jsx";
+import RankTable from "../compare/RankTable.jsx";
 
 const verdictVariants = {
   "Worth it": "worth",
@@ -10,6 +14,7 @@ const verdictVariants = {
 };
 
 function getVideoLabel(entry) {
+  if (entry.source === "compare") return "Compared videos";
   if (entry.source === "media") return "Other upload";
   if (entry.source === "transcript") return "Pasted transcript";
   if (!entry.url) return entry.videoId || "Pasted transcript";
@@ -59,7 +64,7 @@ export default function HistoryItem({ entry, onDelete }) {
             aria-label={`Delete analysis: ${entry.question}`}
             onClick={() => onDelete(entry)}
           >
-            <span aria-hidden="true">×</span>
+            <X aria-hidden="true" size={18} />
           </Button>
         </div>
         <div
@@ -67,13 +72,25 @@ export default function HistoryItem({ entry, onDelete }) {
           id={detailsId}
           hidden={!expanded}
         >
-          <FactsPanel
-            result={{
-              verdict: entry.verdict,
-              facts: entry.facts,
-              missing: entry.missing,
-            }}
-          />
+          {entry.comparison ? (
+            <>
+              <RankTable ranking={entry.comparison.ranking} />
+              <AgreementBlock
+                agreement={entry.comparison.agreement}
+                ranking={entry.comparison.ranking}
+              />
+              <CompareResultList ranking={entry.comparison.ranking} />
+            </>
+          ) : (
+            <FactsPanel
+              result={{
+                verdict: entry.verdict,
+                facts: entry.facts,
+                missing: entry.missing,
+                gap: entry.gap,
+              }}
+            />
+          )}
         </div>
       </article>
     </li>

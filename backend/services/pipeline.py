@@ -9,6 +9,7 @@ def _failure_result(video_id: str, error: AnalysisError) -> VideoResult:
         "verdict": "Can't verify",
         "facts": [],
         "missing": [],
+        "gap": None,
         "meta": {
             "video_id": video_id,
             "cached": False,
@@ -18,6 +19,7 @@ def _failure_result(video_id: str, error: AnalysisError) -> VideoResult:
     }
     return {
         **result,
+        "gap": None,
         "coverage": "none",
         "verified_fact_count": len(result["facts"]),
         "error": error.message,

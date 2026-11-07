@@ -211,6 +211,7 @@ def test_frame_verifier_drops_unknown_timestamps():
         {"00:05"},
     )
     assert parsed["facts"] == [{"text": "Visible label", "timestamp": "00:05"}]
+    assert parsed["parts"] == []
 
 
 def test_vision_request_uses_shared_provider_settings(tmp_path, monkeypatch):

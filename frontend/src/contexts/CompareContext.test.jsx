@@ -2,6 +2,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CompareProvider, useCompare } from "./CompareContext.jsx";
 import { RateLimitProvider } from "./RateLimitContext.jsx";
+import { HistoryProvider } from "./HistoryContext.jsx";
+import { ToastProvider } from "./ToastContext.jsx";
 
 vi.mock("../api.js", () => ({
   compare: vi.fn(),
@@ -38,11 +40,15 @@ function CompareHarness() {
 
 function renderCompare() {
   return render(
-    <RateLimitProvider>
-      <CompareProvider>
-        <CompareHarness />
-      </CompareProvider>
-    </RateLimitProvider>,
+    <ToastProvider>
+      <HistoryProvider>
+        <RateLimitProvider>
+          <CompareProvider>
+            <CompareHarness />
+          </CompareProvider>
+        </RateLimitProvider>
+      </HistoryProvider>
+    </ToastProvider>,
   );
 }
 
@@ -89,7 +95,7 @@ describe("CompareContext", () => {
     );
   });
 
-  it("does not save Compare results to History", async () => {
+  it("saves the ranked results and agreement to History", async () => {
     requestCompare.mockResolvedValue({
       rate: null,
       result: {
@@ -117,6 +123,7 @@ describe("CompareContext", () => {
           meta: { cached: false, tokens_in: 0, tokens_out: 0 },
         },
       ],
+      agreement: null,
       meta: { tokens_in_total: 20, tokens_out_total: 5 },
       },
     });
@@ -130,6 +137,18 @@ describe("CompareContext", () => {
     expect((await screen.findByTestId("result")).textContent).toContain(
       '"question":"How does this work?"',
     );
-    expect(localStorage.getItem("worthrot:history:v1")).toBeNull();
+    const history = JSON.parse(
+      localStorage.getItem("worthrot:history:v1"),
+    ).entries;
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      source: "compare",
+      question: "How does this work?",
+      comparison: {
+        best: "abcdefghijk",
+        agreement: null,
+        ranking: [{ videoId: "abcdefghijk" }, { videoId: "lmnopqrstuv" }],
+      },
+    });
   });
 });

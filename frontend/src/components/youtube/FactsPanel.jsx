@@ -1,5 +1,6 @@
 import { Card } from "../ui/Card.jsx";
 import Badge from "../ui/Badge.jsx";
+import GapCheck from "../ui/GapCheck.jsx";
 
 const verdictVariants = {
   "Worth it": "worth",
@@ -48,6 +49,8 @@ export default function FactsPanel({ result }) {
           ))}
         </ul>
       )}
+
+      <GapCheck gap={result?.gap} />
 
       {import.meta.env.DEV && meta && (
         <small className="analysis-meta">

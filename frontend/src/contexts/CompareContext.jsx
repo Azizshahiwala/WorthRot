@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { compare as requestCompare } from "../api.js";
 import { isValidYouTubeUrl } from "../lib/youtubeUrl.js";
+import { useHistory } from "./HistoryContext.jsx";
 import { useRateLimit } from "./RateLimitContext.jsx";
 
 const CompareContext = createContext(null);
@@ -8,6 +9,7 @@ const MAX_COMPARE_VIDEOS = 3;
 const MIN_COMPARE_VIDEOS = 2;
 
 export function CompareProvider({ children }) {
+  const { addEntry } = useHistory();
   const { update: updateRateLimit } = useRateLimit();
   const [question, setQuestion] = useState("");
   const [urls, setUrls] = useState(["", ""]);
@@ -65,6 +67,25 @@ export function CompareProvider({ children }) {
         urls: trimmedUrls,
       });
       updateRateLimit("compare", rate);
+      const best = response.ranking.find(
+        (video) => video.videoId === response.best,
+      );
+      addEntry({
+        question: trimmedQuestion,
+        videoId: "",
+        url: "",
+        source: "compare",
+        result: {
+          verdict: best?.verdict || "Can't verify",
+          facts: [],
+          missing: [],
+          comparison: {
+            best: response.best,
+            ranking: response.ranking,
+            agreement: response.agreement ?? null,
+          },
+        },
+      });
       setResult(response);
       setStatus("success");
       return response;
@@ -83,7 +104,7 @@ export function CompareProvider({ children }) {
       setStatus("error");
       throw new Error(message);
     }
-  }, [question, urls, updateRateLimit]);
+  }, [question, urls, addEntry, updateRateLimit]);
 
   const reset = useCallback(() => {
     setQuestion("");

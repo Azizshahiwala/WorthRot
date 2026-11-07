@@ -11,6 +11,7 @@ def _public_result(result: dict) -> dict:
         "verdict": result["verdict"],
         "facts": result["facts"],
         "missing": result["missing"],
+        "gap": result.get("gap"),
         "meta": result["meta"],
     }
 

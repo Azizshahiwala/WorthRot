@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import Button from "./Button.jsx";
 
 export default function Toast({
@@ -19,7 +20,7 @@ export default function Toast({
         aria-label="Dismiss notification"
         onClick={() => onDismiss(id)}
       >
-        ×
+        <X aria-hidden="true" size={18} />
       </Button>
     </div>
   );

@@ -1,10 +1,18 @@
 # INSTRUCTIONS_COMPARE.md: Compare tab (rank 2-3 videos for one question)
 
+Current additive behavior: question gap checks appear in each video result.
+After deterministic ranking, one optional request compares verified facts and
+returns agreement summaries. Each Compare request is saved as one grouped
+History entry. `ADR-012` and `AGENTS.md` define these additions and override
+older no-LLM/no-Compare-History statements below; ranking itself remains code-only.
+
 Read `AGENTS.md`, `NEXT_INSTRUCTIONS.md`, `INSTRUCTIONS_FACTS_PIPELINE.md`, and `INSTRUCTIONS_HISTORY.md` first. This file adds to them. If it conflicts with a hard constraint or product rule in `AGENTS.md`, `AGENTS.md` wins. The new endpoint is the one intentional contract addition, and you must update `AGENTS.md` to match.
 
 ## Goal
 
-The user asks one question and supplies 2-3 YouTube URLs. WorthRot ranks the videos by how well each answers the question, so the user knows which one to watch. Output stays **facts only**: no paragraphs, no explanations.
+The user asks one question and supplies 2-3 YouTube URLs. WorthRot ranks the
+videos by how well each answers the question and compares their verified facts.
+Keep summaries concise and grounded in evidence.
 
 ## Prerequisite
 
@@ -18,6 +26,7 @@ The single-video pipeline (`INSTRUCTIONS_FACTS_PIPELINE.md`) must work first. Co
 3. Ranker service (rules in code, no LLM)
 4. Compare tab UI: form, ranking table, per-video facts
 5. Enabling the Compare tab in the navbar config
+6. Cross-video agreement from verified facts and grouped Compare History
 
 **Out of scope**
 - Any non-YouTube source
@@ -68,10 +77,24 @@ Response:
       "verdict": "Worth it | Skim | Rot | Can't verify",
       "facts": [{ "text": "string", "timestamp": "mm:ss", "url": "string" }],
       "missing": ["string"],
+      "gap": {
+        "covered": 1,
+        "total": 2,
+        "label": "Partly covered",
+        "parts": [{"text": "question part", "status": "covered"}]
+      },
       "error": null,
       "meta": { "cached": false, "tokens_in": 0, "tokens_out": 0 }
     }
   ],
+  "agreement": {
+    "agree": [{"point": "string", "videos": ["A", "B"]}],
+    "disagree": [{"point": "string", "positions": [
+      {"video": "A", "claim": "string"},
+      {"video": "B", "claim": "string"}
+    ]}],
+    "unanswered": ["string"]
+  },
   "meta": { "tokens_in_total": 0, "tokens_out_total": 0 }
 }
 ```
@@ -85,6 +108,10 @@ Response:
 - Run `analyze_video` for each URL in parallel with `concurrent.futures.ThreadPoolExecutor` (standard library, no new dependency). No background timers, no WebSockets, which keeps the Embarko constraints.
 - Set a per-video timeout (`COMPARE_TIMEOUT_SECONDS`, default 45). On timeout, that video becomes `Can't verify`.
 - Cache hits still apply per video, so repeated compares can cost zero LLM calls.
+- When at least two results have verified facts, make one short, bounded
+  agreement request using only the question and those facts. The call is
+  optional, its tokens count toward Compare totals, and failure returns
+  `agreement: null` without affecting rank or `best`.
 - **Thread safety:** open a SQLite connection per thread, set a busy timeout, and confirm the LLM client is safe to share across threads (otherwise create one per call).
 
 ### Ranker (`backend/services/ranker.py`)
@@ -128,9 +155,13 @@ Components (`components/compare/`, one per file):
 | `CompareForm.jsx` | Question input, 2-3 URL inputs, add/remove URL controls, submit with loading state. Built from existing `Input` and `Button`. |
 | `RankTable.jsx` | Semantic `<table>`: rank, video, verdict `Badge`, verified fact count, link to the first fact timestamp |
 | `CompareResultList.jsx` | Per-video facts in rank order, reusing the **same facts panel** as the YouTube tab |
+| `AgreementBlock.jsx` | Shaded agree/disagree/unanswered lines, mapping video letters to ranks and IDs |
 
 UI rules:
-- No paragraphs and no explanatory text in the results. Empty or failed rows get one short line.
+- Put the agreement block between the rank table and per-video results. Keep
+  its three labelled lines shaded and identify videos by letter, rank, and ID.
+- Keep each result grounded in verified facts. If any agreement list is empty,
+  show a short plain-text fallback.
 - If `best` is `null`, show one line: "None of these videos cover your question."
 - A `Can't verify` row shows the short error message and the label "Could not check".
 - Table accessibility: `<caption>`, `<th scope>`, a verdict text label (not color alone), keyboard-reachable links. On narrow screens (below 640px) the table scrolls inside its own container or stacks as cards.
@@ -146,8 +177,8 @@ Backend (pytest, mock the LLM and YouTube, no live network):
 - `/compare` validation: missing question, fewer than 2 URLs, more than the cap, invalid URL, duplicate video.
 - Partial failure: one video raises or times out, the others still return and the failed one is `Can't verify`.
 - Cache: a repeated compare makes no LLM call for cached videos.
-- History: save each successfully checked result through the existing History
-  context; do not save failed or `Can't verify` rows.
+- History: save one grouped Compare entry with ranking, per-video verified
+  facts, and nullable agreement; do not store transcripts or internal quotes.
 - `/analyze` contract unchanged after the refactor.
 
 Frontend (Vitest): `useCompare` guard error outside provider, URL add/remove bounds (min 2, max 3), and any URL validation helper.
@@ -155,7 +186,10 @@ Frontend (Vitest): `useCompare` guard error outside provider, URL add/remove bou
 ## Docs
 
 - `docs/adr/ADR-008-compare-endpoint-and-code-ranking.md`: decision, options (LLM ranks all videos in one call; per-video analysis plus code ranking; client-side loop over `/analyze`), trade-offs, consequences, action items. Record why ranking is in code (zero extra tokens, deterministic, explainable).
-- Update `AGENTS.md` (API contract: add `/compare`), `docs/architecture.md`, and `docs/design-system.md` (ranking table pattern and any new component).
+- `docs/adr/ADR-012-gap-agreement-and-compare-history.md`: current gap,
+  agreement, and History behavior.
+- Update `AGENTS.md`, `docs/architecture.md`, and `docs/design-system.md` with
+  the response fields, shaded summaries, and grouped Compare History.
 - Update the sequence diagram for the multi-video flow if you maintain it.
 
 ## Definition of done
@@ -165,8 +199,10 @@ Frontend (Vitest): `useCompare` guard error outside provider, URL add/remove bou
 - [ ] One failing video does not fail the whole compare
 - [ ] `Can't verify` ranks last and is labelled "Could not check"
 - [ ] `best` is `null` and the UI says so when nothing covers the question
-- [ ] N videos cost at most N LLM calls, and zero for cached videos
-- [ ] Output is facts and a table only, no paragraphs
+- [ ] N videos cost at most N analysis calls plus one optional agreement call
+- [ ] Gap check only appears when question parts are available
+- [ ] Agreement failure leaves ranking visible and unchanged
+- [ ] Compare History expands to the saved ranking, agreement, and per-video facts
 - [ ] Accessible table, keyboard-navigable, light and dark themes both correct
 - [ ] No hardcoded colors, spacing, or font sizes
 - [ ] ADR-008, `AGENTS.md`, `architecture.md`, and design-system docs updated

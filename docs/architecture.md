@@ -23,7 +23,7 @@ Vite serves the UI and proxies API requests to Flask.
 - `src/styles/` holds theme tokens, base styles, and component styles.
 - `/compare` ranks two or three YouTube videos for one question. `/other`
   analyzes user-uploaded MP4/MP3 files. Successful single-video and media
-  analyses are saved to History as result summaries; Compare is not.
+  analyses and completed Compare summaries are saved to History.
 - `src/lib/historyStorage.js` validates and persists result summaries in
   browser `localStorage`; analysis still works when storage is unavailable.
 
@@ -32,27 +32,36 @@ Vite serves the UI and proxies API requests to Flask.
 `POST /analyze` accepts one YouTube URL, a question, and optionally a pasted
 timestamped transcript. A pasted transcript takes precedence over caption
 retrieval. The pipeline cleans caption text, merges it into timestamped
-30–45-second windows, ranks windows locally with plain-Python BM25, and sends
+30–45-second windows while retaining their original caption segments, ranks
+windows locally with plain-Python BM25, and sends
 only the top matching context to the configured model provider. Transcripts under
 `SHORT_TRANSCRIPT_TOKENS` skip keyword retrieval, subject to the context cap.
 The cap includes the question and formatted transcript windows.
 
 The model returns compact JSON facts and internal source quotes. The verifier
 requires each quote to match its exact timestamped window after case and
-whitespace normalization. Only verified facts reach the response. Code maps
-coverage and verified-fact count to the verdict; no fact is inferred from a
-video title. A long transcript with no matching windows returns `Rot` without
-an LLM call.
+whitespace normalization. A verified fact uses the timestamp of the caption
+segment containing its quote, falling back to the window start when segment
+details are unavailable. Linked video playback starts two seconds before that
+displayed fact timestamp. Existing cached results retain their prior
+timestamps until refreshed or cleared. Only verified facts reach the response.
+Code maps coverage and verified-fact count to the verdict; no fact is inferred
+from a video title. A long transcript with no matching windows returns `Rot` without
+an LLM call. The same extraction response may divide the question into up to
+four short parts and label each covered, partial, or missing. These labels are
+bounded by the verified-fact count; no verified facts forces every part to
+missing. Older cached results without this optional `gap` field remain valid
+and simply omit the gap panel.
 
-After a completed `/analyze` or `/analyze-media` request, the frontend saves
-the question and result summary to `localStorage` on that browser. Media
-entries are labelled "Other upload" and retain no uploaded file or transcript.
-History omits transcripts, internal quotes, and token metadata. Compare
-results are not saved. History reads, expands, and deletes these local entries
-without requesting an analysis; entries are limited to 50 and YouTube
-analyses are deduplicated by video and normalized question. The server-side
-SQLite cache remains separate and is not an account or ownership system. No
-cookies are set.
+After a completed `/analyze`, `/analyze-media`, or `/compare` request, the
+frontend saves the question and result summary to `localStorage` on that
+browser. Media entries retain no uploaded file or transcript. Compare entries
+keep the ranked verified facts and optional agreement together. History omits
+transcripts, internal quotes, and token metadata. History reads, expands, and
+deletes these local entries without requesting an analysis; entries are limited
+to 50 and duplicate analyses are deduplicated. The server-side SQLite cache
+remains separate and is not an account or ownership system. No cookies are
+set.
 
 Transcript and question-specific result caches use SQLite under `DATA_DIR`.
 Local runs default to `src/backend/data`; deployments must provide their
@@ -75,8 +84,12 @@ The pure-code ranker orders by verdict (`Worth it`, `Skim`, `Rot`, `Can't
 verify`), then coverage, verified fact count, and stable input order. Internal
 coverage and fact-count fields never appear in the API response. `best` is
 non-null only when the leading result is `Worth it` or `Skim`. Cached analysis
-results are reused per video and question, so repeat comparisons make no model
-calls for cached videos.
+results are reused per video and question, so repeat comparisons make no
+analysis calls for cached videos. When at least two ranked videos have
+verified facts, one short, deadline-bounded model request compares only those
+facts and adds optional `agree`, `disagree`, and `unanswered` summaries. This
+call does not affect the deterministic ranking; its token usage is included in
+the Compare totals, and its failure never fails the comparison.
 
 ```mermaid
 sequenceDiagram
@@ -145,7 +158,11 @@ sequenceDiagram
     end
     API->>Rank: rank results; preserve stable ties
     Rank-->>API: distinct ranks and best video ID or null
-    API-->>UI: per-video facts, errors, ranks, aggregate tokens
+    opt at least two videos have verified facts
+        API->>LLM: question + ranked verified facts
+        LLM-->>API: agree, disagree, unanswered, and usage
+    end
+    API-->>UI: per-video facts, gap checks, agreement, ranks, aggregate tokens
 ```
 
 ## API contract
@@ -181,6 +198,12 @@ sequenceDiagram
     "verdict": "Worth it | Skim | Rot | Can't verify",
     "facts": [{ "text": "string", "timestamp": "mm:ss", "url": "string" }],
     "missing": ["string"],
+    "gap": {
+      "covered": 1,
+      "total": 2,
+      "label": "Partly covered",
+      "parts": [{ "text": "question part", "status": "covered" }]
+    },
     "meta": {
       "video_id": "string",
       "cached": false,
@@ -192,6 +215,7 @@ sequenceDiagram
 
   Each fact URL is the YouTube URL with its timestamp parameter; it is empty
   for transcript-only input. Internal verification quotes are never returned.
+  `gap` may be null; cached entries from before this feature may omit it.
   Errors use a JSON object with a human-readable `message`; caption or LLM
   failures also include a `result` with a `Can't verify` verdict.
 
@@ -215,10 +239,29 @@ sequenceDiagram
         "verdict": "Worth it | Skim | Rot | Can't verify",
         "facts": [{ "text": "string", "timestamp": "mm:ss", "url": "string" }],
         "missing": ["string"],
+        "gap": {
+          "covered": 1,
+          "total": 2,
+          "label": "Partly covered",
+          "parts": [{ "text": "question part", "status": "covered" }]
+        },
         "error": null,
         "meta": { "cached": false, "tokens_in": 0, "tokens_out": 0 }
       }
     ],
+    "agreement": {
+      "agree": [{ "point": "string", "videos": ["A", "B"] }],
+      "disagree": [
+        {
+          "point": "string",
+          "positions": [
+            {"video": "A", "claim": "string"},
+            {"video": "B", "claim": "string"}
+          ]
+        }
+      ],
+      "unanswered": ["string"]
+    },
     "meta": { "tokens_in_total": 0, "tokens_out_total": 0 }
   }
   ```
@@ -226,7 +269,8 @@ sequenceDiagram
   Each failed video has verdict `Can't verify` and an `error` object containing
   a human-readable `message`; other video results remain available. `best` is
   set only for a leading `Worth it` or `Skim` result. Coverage and verified
-  fact counts are private ranker inputs.
+  fact counts are private ranker inputs. `agreement` may be null if fewer than
+  two videos have verified facts or the optional request fails.
 
 - `POST /analyze-media` accepts multipart form data with a `question` and one
   MP4/MP3 `file`. Content bytes, size, duration, and streams are validated
@@ -239,6 +283,12 @@ sequenceDiagram
     "source": "subtitles | speech | frames",
     "facts": [{ "text": "string", "timestamp": "mm:ss or null", "url": null }],
     "missing": ["string"],
+    "gap": {
+      "covered": 1,
+      "total": 2,
+      "label": "Partly covered",
+      "parts": [{ "text": "question part", "status": "covered" }]
+    },
     "meta": { "tokens_in": 0, "tokens_out": 0, "frames_sent": 0 }
   }
   ```
@@ -251,6 +301,8 @@ sequenceDiagram
   timestamps are discarded, and untimed speech returns `Can't verify`. Frame
   facts must cite a sampled timestamp and the verdict is capped at `Skim`. The
   frame path sends one vision request with no more than `MAX_FRAMES` images.
+  Its response also supplies gap parts from those sampled frames; the gap is
+  null when no parts are available.
 
 ## Configuration
 
@@ -301,16 +353,20 @@ verified; see `docs/adr/ADR-010-ip-rate-limiting.md`.
 
 The `HistoryProvider` is nested inside `ToastProvider` and before
 `AnalysisProvider`. Completed single-video and media analyses call its
-`addEntry` action; Compare results do not write to History.
+`addEntry` action. Each Compare request adds one summary entry containing the
+ranked videos and optional agreement.
 `HistoryPage` reads from this context, and expanded entries use the same
 `FactsPanel` as fresh analysis results. The storage module validates every
 loaded entry and catches blocked-storage, malformed-data, and quota errors.
+Expanded Compare entries also show their rank table, agreement, and verified
+facts.
 History is per browser and device; clearing site data removes it.
 
 ## Current boundaries
 
-- Compare ranks at most three YouTube videos; it does not accept pasted
-  transcripts or save results to History.
+- Compare ranks at most three YouTube videos and does not accept pasted
+  transcripts. History stores the question, ranking, verified facts, and
+  optional agreement summary, but no transcripts or internal quotes.
 - Other analyzes user-provided MP4/MP3 files only; it does not accept external
   media URLs. Only result summaries, never files or transcripts, are saved to
   History. One media job runs at a time, and request workdirs are swept when

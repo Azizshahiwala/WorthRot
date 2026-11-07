@@ -2,6 +2,7 @@ import { Card } from "../components/ui/Card.jsx";
 import Spinner from "../components/ui/Spinner.jsx";
 import CompareForm from "../components/compare/CompareForm.jsx";
 import CompareResultList from "../components/compare/CompareResultList.jsx";
+import AgreementBlock from "../components/compare/AgreementBlock.jsx";
 import RankTable from "../components/compare/RankTable.jsx";
 import { useCompare } from "../contexts/CompareContext.jsx";
 
@@ -31,6 +32,10 @@ export default function ComparePage() {
             </p>
           )}
           <RankTable ranking={result.ranking} />
+          <AgreementBlock
+            agreement={result.agreement}
+            ranking={result.ranking}
+          />
           <CompareResultList ranking={result.ranking} />
           {import.meta.env.DEV && (
             <small className="analysis-meta">

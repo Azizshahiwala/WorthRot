@@ -1,5 +1,72 @@
 const verdicts = new Set(["Worth it", "Skim", "Rot", "Can't verify"]);
 const rateLimitFeatures = ["analyze", "compare", "media"];
+const gapStatuses = new Set(["covered", "partial", "missing"]);
+const gapLabels = new Set(["All covered", "Partly covered", "Not covered"]);
+
+function isGapCheck(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    Number.isInteger(value.covered) &&
+    Number.isInteger(value.total) &&
+    value.covered >= 0 &&
+    value.covered <= value.total &&
+    value.total >= 0 &&
+    value.total <= 4 &&
+    gapLabels.has(value.label) &&
+    Array.isArray(value.parts) &&
+    value.parts.length === value.total &&
+    value.parts.every(
+      (part) =>
+        part !== null &&
+        typeof part === "object" &&
+        typeof part.text === "string" &&
+        gapStatuses.has(part.status),
+    )
+  );
+}
+
+function isOptionalGapCheck(value) {
+  return value === undefined || value === null || isGapCheck(value);
+}
+
+function isAgreement(value, ranking) {
+  const labels = new Set(
+    ranking.map((item) => String.fromCharCode(64 + item.rank)),
+  );
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    Array.isArray(value.agree) &&
+    value.agree.every(
+      (item) =>
+        item !== null &&
+        typeof item === "object" &&
+        typeof item.point === "string" &&
+        Array.isArray(item.videos) &&
+        item.videos.length >= 2 &&
+        item.videos.every((label) => labels.has(label)),
+    ) &&
+    Array.isArray(value.disagree) &&
+    value.disagree.every(
+      (item) =>
+        item !== null &&
+        typeof item === "object" &&
+        typeof item.point === "string" &&
+        Array.isArray(item.positions) &&
+        item.positions.length >= 2 &&
+        item.positions.every(
+          (position) =>
+            position !== null &&
+            typeof position === "object" &&
+            labels.has(position.video) &&
+            typeof position.claim === "string",
+        ),
+    ) &&
+    Array.isArray(value.unanswered) &&
+    value.unanswered.every((item) => typeof item === "string")
+  );
+}
 
 export function parseRateLimitHeaders(headers) {
   const limit = Number(headers?.get?.("X-RateLimit-Limit"));
@@ -89,6 +156,7 @@ function isAnalysisResponse(value) {
     ) &&
     Array.isArray(value.missing) &&
     value.missing.every((item) => typeof item === "string") &&
+    isOptionalGapCheck(value.gap) &&
     value.meta !== null &&
     typeof value.meta === "object" &&
     typeof value.meta.video_id === "string" &&
@@ -167,6 +235,7 @@ function isCompareResult(value) {
         ) &&
         Array.isArray(item.missing) &&
         item.missing.every((entry) => typeof entry === "string") &&
+        isOptionalGapCheck(item.gap) &&
         (item.error === null ||
           (item.error !== null &&
             typeof item.error === "object" &&
@@ -177,6 +246,9 @@ function isCompareResult(value) {
         Number.isInteger(item.meta.tokens_in) &&
         Number.isInteger(item.meta.tokens_out),
     ) &&
+    (value.agreement === undefined ||
+      value.agreement === null ||
+      isAgreement(value.agreement, value.ranking)) &&
     value.meta !== null &&
     typeof value.meta === "object" &&
     Number.isInteger(value.meta.tokens_in_total) &&
@@ -233,6 +305,7 @@ function isMediaAnalysisResponse(value) {
     ) &&
     Array.isArray(value.missing) &&
     value.missing.every((entry) => typeof entry === "string") &&
+    isOptionalGapCheck(value.gap) &&
     value.meta !== null &&
     typeof value.meta === "object" &&
     Number.isInteger(value.meta.tokens_in) &&

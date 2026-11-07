@@ -1,5 +1,12 @@
 # INSTRUCTIONS_HISTORY.md: History tab with browser storage
 
+Current extension: single-video and media entries may include an optional
+question `gap`. Each completed Compare request is stored as one grouped
+`source: "compare"` entry with its ranking, verified facts, and nullable
+agreement. This supersedes older guidance below that says only the
+`AnalysisProvider` writes History; `CompareProvider` writes grouped Compare
+entries through the same History context. See `ADR-012` and `AGENTS.md`.
+
 Read `AGENTS.md`, `NEXT_INSTRUCTIONS.md`, and `INSTRUCTIONS_FACTS_PIPELINE.md` first. This file adds to them. If it conflicts with a hard constraint or product rule in `AGENTS.md`, `AGENTS.md` wins.
 
 ## Goal

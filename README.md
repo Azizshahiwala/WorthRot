@@ -2,7 +2,8 @@
 
 WorthRot helps people decide whether a video answers a specific question. It
 returns a verdict, short timestamped facts verified against the transcript, and
-any missing topics.
+any missing topics, with a question-level gap check. Compare ranks videos and
+summarizes agreement using their verified facts.
 
 ## Requirements
 
@@ -34,8 +35,9 @@ The app loads `.env` for local development. Keep the key out of source control;
 `GEMINI_API_KEY` enables speech-to-text for MP3 uploads and MP4 files without
 embedded subtitles. Bazaarlink remains responsible for analyzing transcripts
 and frame analysis. If Gemini returns HTTP 429, `ELEVEN_LABS_API` enables the
-ElevenLabs transcription fallback. Completed Other analyses are saved to
-History as result summaries only; uploaded files and transcripts are not saved.
+ElevenLabs transcription fallback. Completed Other and Compare analyses are
+saved to History as result summaries only; uploaded files and transcripts are
+not saved.
 For hosted deployments, configure `BAZAARLINK_API_KEY`, `LLM_BASE_URL`, and
 `MODEL_NAME` as
 environment variables in the hosting dashboard instead of uploading `.env`.

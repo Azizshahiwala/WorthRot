@@ -8,6 +8,7 @@ from urllib.request import Request, urlopen
 from backend.services.config import Settings
 from backend.services.media.errors import MediaProviderError
 from backend.services.media.frames import VideoFrame
+from backend.services.verdict import parse_gap_parts
 
 MAX_FACTS = 5
 MAX_FACT_WORDS = 15
@@ -15,13 +16,15 @@ MAX_MISSING_ITEMS = 3
 MAX_MISSING_WORDS = 8
 TIMESTAMP_PATTERN = re.compile(r"^(?:(\d+):)?([0-5]?\d):([0-5]\d)$")
 SYSTEM_PROMPT = """Describe only what is visible in the supplied video frames.
-Return JSON only with coverage, facts, and missing. Each fact must answer the
+Return JSON only with coverage, facts, missing, and parts. Each fact must answer the
 question, describe something visible, use at most 15 words, and cite the exact
 timestamp of a supplied frame. Return at most 5 facts and 3 missing topics.
-Each missing topic has at most 8 words. If the frames do not answer the
+Each missing topic has at most 8 words. Split the question into 2-4 short
+parts of at most 8 words; judge each only from supplied frames, and mark a
+part covered only when supported by a visible fact. If the frames do not answer the
 question, use coverage "none" and an empty facts list.
 Shape: {"coverage":"full|partial|none","facts":[{"f":"...","t":"mm:ss"}],
-"missing":["..."]}"""
+"missing":["..."],"parts":[{"p":"...","s":"covered|partial|missing"}]}"""
 
 
 def _seconds(timestamp: str) -> int | None:
@@ -75,7 +78,12 @@ def _parse_response(content: str, sent_timestamps: set[str]) -> dict:
     ][:MAX_MISSING_ITEMS]
     if coverage == "none":
         facts = []
-    return {"coverage": coverage, "facts": facts, "missing": missing}
+    return {
+        "coverage": coverage,
+        "facts": facts,
+        "missing": missing,
+        "parts": parse_gap_parts(payload.get("parts")),
+    }
 
 
 def analyze_frames(

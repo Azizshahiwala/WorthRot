@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, TypedDict
 
 
@@ -27,6 +27,7 @@ class TranscriptWindow:
     end: float
     text: str
     score: float = 0.0
+    segments: list[TranscriptSegment] = field(default_factory=list)
 
     @property
     def timestamp(self) -> str:
@@ -47,10 +48,23 @@ class AnalysisMeta(TypedDict):
     tokens_out: int
 
 
+class GapPart(TypedDict):
+    text: str
+    status: Literal["covered", "partial", "missing"]
+
+
+class GapCheck(TypedDict):
+    covered: int
+    total: int
+    label: Literal["All covered", "Partly covered", "Not covered"]
+    parts: list[GapPart]
+
+
 class AnalysisResponse(TypedDict):
     verdict: Literal["Worth it", "Skim", "Rot", "Can't verify"]
     facts: list[AnalysisFact]
     missing: list[str]
+    gap: GapCheck | None
     meta: AnalysisMeta
 
 
@@ -71,6 +85,7 @@ class MediaAnalysisResponse(TypedDict):
     source: Literal["subtitles", "speech", "frames"]
     facts: list[MediaFact]
     missing: list[str]
+    gap: GapCheck | None
     meta: MediaMeta
 
 

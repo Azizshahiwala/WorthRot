@@ -1,5 +1,6 @@
 import math
 import re
+from dataclasses import replace
 
 from backend.models import TranscriptWindow
 from backend.services.errors import ConfigurationError, InvalidInputError
@@ -34,7 +35,7 @@ def _score_windows(
 ) -> list[TranscriptWindow]:
     query_tokens = set(_tokens(question))
     if not query_tokens:
-        return [TranscriptWindow(w.start, w.end, w.text, 0.0) for w in windows]
+        return [replace(window, score=0.0) for window in windows]
 
     tokenized = [_tokens(window.text) for window in windows]
     document_frequency = {
@@ -58,7 +59,7 @@ def _score_windows(
                 1 - 0.75 + 0.75 * document_length / max(1, average_length)
             )
             score += inverse_frequency * (frequency * 2.5 / denominator)
-        scored.append(TranscriptWindow(window.start, window.end, window.text, score))
+        scored.append(replace(window, score=score))
     return scored
 
 
@@ -80,22 +81,18 @@ def _trim_context(
         prefix = f"Question: {question.strip()}\n\n[{highest.timestamp}] "
         available_chars = max_context_tokens * 4 - len(prefix)
         if available_chars > 0:
-            clipped = TranscriptWindow(
-                highest.start,
-                highest.end,
-                highest.text[:available_chars].rsplit(" ", 1)[0],
-                highest.score,
+            clipped = replace(
+                highest,
+                text=highest.text[:available_chars].rsplit(" ", 1)[0],
             )
             while (
                 clipped.text
                 and estimate_tokens(format_context(question, [clipped]))
                 > max_context_tokens
             ):
-                clipped = TranscriptWindow(
-                    clipped.start,
-                    clipped.end,
-                    clipped.text.rsplit(" ", 1)[0],
-                    clipped.score,
+                clipped = replace(
+                    clipped,
+                    text=clipped.text.rsplit(" ", 1)[0],
                 )
             if clipped.text:
                 selected.append(clipped)

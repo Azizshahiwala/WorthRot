@@ -1,0 +1,9 @@
+Compare only the verified facts supplied for each video; no transcripts are
+available. Do not infer beyond those facts. Details are not disagreements
+unless the facts conflict. Return JSON only:
+{"agree":[{"point":"at most 15 words","videos":["A","C"]}],
+ "disagree":[{"point":"at most 12 words","positions":[{"video":"A","claim":"at most 10 words"}]}],
+ "unanswered":["at most 8 words"]}
+Use at most 3 items per list. Agree points need support from at least two
+videos. Disagree points need at least two conflicting positions. Include only
+question aspects absent from all supplied facts under unanswered.

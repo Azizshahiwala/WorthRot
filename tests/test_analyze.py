@@ -54,6 +54,11 @@ def test_analyze_returns_verified_facts_and_deep_links(monkeypatch, tmp_path):
                 },
             ],
             "missing": [],
+            "parts": [
+                {"text": "sharpening method", "status": "covered"},
+                {"text": "blade angle", "status": "covered"},
+                {"text": "maintenance", "status": "missing"},
+            ],
             "tokens_in": 80,
             "tokens_out": 24,
         }
@@ -68,7 +73,7 @@ def test_analyze_returns_verified_facts_and_deep_links(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     result = response.get_json()
-    assert set(result) == {"verdict", "facts", "missing", "meta"}
+    assert set(result) == {"verdict", "facts", "missing", "gap", "meta"}
     assert result["verdict"] == "Worth it"
     assert len(result["facts"]) == 2
     assert set(result["facts"][0]) == {"text", "timestamp", "url"}
@@ -81,6 +86,9 @@ def test_analyze_returns_verified_facts_and_deep_links(monkeypatch, tmp_path):
         "tokens_in": 80,
         "tokens_out": 24,
     }
+    assert result["gap"]["covered"] == 2
+    assert result["gap"]["total"] == 3
+    assert result["gap"]["parts"][2]["status"] == "missing"
 
     second_response = client.post(
         "/analyze",
@@ -91,6 +99,46 @@ def test_analyze_returns_verified_facts_and_deep_links(monkeypatch, tmp_path):
     assert second_response.get_json()["meta"]["cached"] is True
     assert len(transcript_calls) == 1
     assert len(model_calls) == 1
+
+
+def test_video_link_leads_fact_timestamp_by_two_seconds(monkeypatch, tmp_path):
+    client = prepare_app(monkeypatch, tmp_path)
+
+    monkeypatch.setattr(
+        "backend.services.analyzer.fetch_transcript",
+        lambda video_id: TranscriptDocument(
+            segments=[
+                TranscriptSegment(10, 2, "Use a whetstone to sharpen a knife.")
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        "backend.services.analyzer.extract_facts",
+        lambda settings, context: {
+            "coverage": "full",
+            "facts": [
+                {
+                    "f": "A whetstone sharpens a knife.",
+                    "t": "00:10",
+                    "q": "Use a whetstone to sharpen a knife.",
+                }
+            ],
+            "missing": [],
+            "parts": [],
+            "tokens_in": 10,
+            "tokens_out": 5,
+        },
+    )
+
+    response = client.post(
+        "/analyze",
+        json={"question": "How do I sharpen a knife?", "urls": [VIDEO_URL]},
+    )
+
+    assert response.status_code == 200
+    fact = response.get_json()["facts"][0]
+    assert fact["timestamp"] == "00:10"
+    assert fact["url"].endswith("&t=8")
 
 
 def test_timestamped_paste_transcript_uses_same_fact_pipeline(monkeypatch, tmp_path):
@@ -109,6 +157,10 @@ def test_timestamped_paste_transcript_uses_same_fact_pipeline(monkeypatch, tmp_p
                 }
             ],
             "missing": ["blade angle"],
+            "parts": [
+                {"text": "sharpening method", "status": "covered"},
+                {"text": "blade angle", "status": "missing"},
+            ],
             "tokens_in": 20,
             "tokens_out": 10,
         }
@@ -202,6 +254,7 @@ def test_missing_captions_returns_paste_transcript_guidance(monkeypatch, tmp_pat
         "verdict",
         "facts",
         "missing",
+        "gap",
         "meta",
     }
 

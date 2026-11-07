@@ -2,7 +2,9 @@ export const HISTORY_STORAGE_KEY = "worthrot:history:v1";
 export const MAX_HISTORY_ENTRIES = 50;
 const HISTORY_VERSION = 1;
 const VERDICTS = new Set(["Worth it", "Skim", "Rot", "Can't verify"]);
-const HISTORY_SOURCES = new Set(["youtube", "transcript", "media"]);
+const HISTORY_SOURCES = new Set(["youtube", "transcript", "media", "compare"]);
+const GAP_STATUSES = new Set(["covered", "partial", "missing"]);
+const GAP_LABELS = new Set(["All covered", "Partly covered", "Not covered"]);
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -15,6 +17,103 @@ function isSafeUrl(value) {
   } catch {
     return false;
   }
+}
+
+export function isGapCheck(value) {
+  return (
+    isRecord(value) &&
+    Number.isInteger(value.covered) &&
+    Number.isInteger(value.total) &&
+    value.covered >= 0 &&
+    value.covered <= value.total &&
+    value.total >= 0 &&
+    value.total <= 4 &&
+    GAP_LABELS.has(value.label) &&
+    Array.isArray(value.parts) &&
+    value.parts.length === value.total &&
+    value.parts.every(
+      (part) =>
+        isRecord(part) &&
+        typeof part.text === "string" &&
+        GAP_STATUSES.has(part.status),
+    )
+  );
+}
+
+function isAgreement(value, ranking) {
+  if (!isRecord(value)) return false;
+  const labels = new Set(
+    ranking.filter((video) => video.facts.length).map((video) =>
+      String.fromCharCode(64 + video.rank),
+    ),
+  );
+  return (
+    Array.isArray(value.agree) &&
+    value.agree.every(
+      (item) =>
+        isRecord(item) &&
+        typeof item.point === "string" &&
+        Array.isArray(item.videos) &&
+        item.videos.length >= 2 &&
+        item.videos.every((label) => labels.has(label)),
+    ) &&
+    Array.isArray(value.disagree) &&
+    value.disagree.every(
+      (item) =>
+        isRecord(item) &&
+        typeof item.point === "string" &&
+        Array.isArray(item.positions) &&
+        item.positions.length >= 2 &&
+        item.positions.every(
+          (position) =>
+            isRecord(position) &&
+            labels.has(position.video) &&
+            typeof position.claim === "string",
+        ),
+    ) &&
+    Array.isArray(value.unanswered) &&
+    value.unanswered.every((item) => typeof item === "string")
+  );
+}
+
+export function isComparison(value) {
+  if (
+    !isRecord(value) ||
+    (typeof value.best !== "string" && value.best !== null) ||
+    !Array.isArray(value.ranking) ||
+    value.ranking.length < 2 ||
+    value.ranking.length > 3
+  ) {
+    return false;
+  }
+  const rankingIsValid = value.ranking.every(
+    (video, index) =>
+      isRecord(video) &&
+      video.rank === index + 1 &&
+      typeof video.videoId === "string" &&
+      typeof video.url === "string" &&
+      isSafeUrl(video.url) &&
+      VERDICTS.has(video.verdict) &&
+      Array.isArray(video.facts) &&
+      video.facts.length <= 5 &&
+      video.facts.every(
+        (fact) =>
+          isRecord(fact) &&
+          typeof fact.text === "string" &&
+          typeof fact.timestamp === "string" &&
+          typeof fact.url === "string" &&
+          isSafeUrl(fact.url),
+      ) &&
+      Array.isArray(video.missing) &&
+      video.missing.every((item) => typeof item === "string") &&
+      (video.error === null ||
+        (isRecord(video.error) && typeof video.error.message === "string")) &&
+      (video.gap === undefined || video.gap === null || isGapCheck(video.gap)),
+  );
+  return (
+    rankingIsValid &&
+    (value.agreement === null || isAgreement(value.agreement, value.ranking))
+  );
 }
 
 function getStorage() {
@@ -64,7 +163,10 @@ export function validateEntry(entry) {
         isSafeUrl(fact.url),
     ) ||
     !Array.isArray(entry.missing) ||
-    !entry.missing.every((item) => typeof item === "string")
+    !entry.missing.every((item) => typeof item === "string") ||
+    (entry.gap !== undefined && entry.gap !== null && !isGapCheck(entry.gap)) ||
+    (entry.source === "compare" && !isComparison(entry.comparison)) ||
+    (entry.source !== "compare" && entry.comparison !== undefined)
   ) {
     return false;
   }
@@ -88,6 +190,27 @@ function sanitizeEntry(entry) {
   };
   if (HISTORY_SOURCES.has(entry.source)) {
     sanitized.source = entry.source;
+  }
+  if (isGapCheck(entry.gap)) sanitized.gap = entry.gap;
+  if (entry.source === "compare") {
+    sanitized.comparison = {
+      best: entry.comparison.best,
+      ranking: entry.comparison.ranking.map((video) => ({
+        rank: video.rank,
+        videoId: video.videoId,
+        url: video.url,
+        verdict: video.verdict,
+        facts: video.facts.map(({ text, timestamp, url }) => ({
+          text,
+          timestamp,
+          url,
+        })),
+        missing: [...video.missing],
+        error: video.error,
+        ...(isGapCheck(video.gap) ? { gap: video.gap } : {}),
+      })),
+      agreement: entry.comparison.agreement,
+    };
   }
   return sanitized;
 }
